@@ -1,0 +1,14 @@
+{
+    "title": "FNF Animania!",
+    "description": "Coolswag Mod 109/10",
+    "contributors": [
+        {
+            "name": "FNF Fan",
+            "role": "Coder, Porter, Coder, Coder, Porter, Porter",
+            "url": "https://www.tiktok.com/@full.fnf"
+        }
+    ],
+    "api_version": "0.8.0",
+    "mod_version": "0.0.1",
+    "license": "CC BY 4.0,MIT"
+}

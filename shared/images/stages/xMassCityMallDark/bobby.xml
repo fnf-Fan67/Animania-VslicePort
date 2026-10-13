@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="bobby.png">
+	<!-- Created with Adobe Animate version 24.0.0.305 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="bobby0000" x="2" y="84" width="90" height="76" frameX="-1" frameY="-63" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0001" x="2" y="84" width="90" height="76" frameX="-1" frameY="-63" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0002" x="2" y="2" width="91" height="80" frameX="0" frameY="-56" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0003" x="94" y="86" width="85" height="69" frameX="-6" frameY="-28" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0004" x="94" y="86" width="85" height="69" frameX="-6" frameY="-28" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0005" x="94" y="157" width="87" height="65" frameX="-2" frameY="-8" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0006" x="94" y="157" width="87" height="65" frameX="-2" frameY="-8" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0007" x="94" y="157" width="87" height="65" frameX="-2" frameY="-8" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0008" x="95" y="2" width="86" height="82" frameX="-4" frameY="0" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0009" x="95" y="2" width="86" height="82" frameX="-4" frameY="0" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0010" x="95" y="2" width="86" height="82" frameX="-4" frameY="0" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0011" x="2" y="162" width="88" height="62" frameX="-1" frameY="-42" frameWidth="91" frameHeight="139" rotated="false"/>
+	<SubTexture name="bobby0012" x="2" y="162" width="88" height="62" frameX="-1" frameY="-42" frameWidth="91" frameHeight="139" rotated="false"/>
+</TextureAtlas>

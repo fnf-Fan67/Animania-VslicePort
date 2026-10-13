@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TextureAtlas imagePath="noteCombo.png" width="1417" height="1469">
+	<SubTexture name="NOTE COMBO animation0000" x="1" y="1" width="674" height="267" frameX="-10" frameY="-85" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0001" x="1105" y="549" width="255" height="485" rotated="true" frameX="-110" frameY="-133" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0002" x="549" y="1083" width="509" height="348" frameX="-230" frameY="-44" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0003" x="1" y="271" width="567" height="413" frameX="-201" frameY="-12" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0004" x="1" y="687" width="553" height="393" frameX="-208" frameY="-21" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0005" x="1031" y="1" width="385" height="545" rotated="true" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0006" x="1031" y="1" width="385" height="545" rotated="true" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0007" x="1031" y="1" width="385" height="545" rotated="true" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0008" x="1031" y="1" width="385" height="545" rotated="true" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0009" x="1031" y="1" width="385" height="545" rotated="true" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0010" x="557" y="687" width="545" height="385" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0011" x="1031" y="1" width="385" height="545" rotated="true" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0012" x="1031" y="1" width="385" height="545" rotated="true" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0013" x="1031" y="1" width="385" height="545" rotated="true" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0014" x="1031" y="1" width="385" height="545" rotated="true" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0015" x="1031" y="1" width="385" height="545" rotated="true" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0016" x="1031" y="1" width="385" height="545" rotated="true" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0017" x="557" y="687" width="545" height="385" frameX="-212" frameY="-25" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0018" x="1" y="1083" width="545" height="385" frameX="-220" frameY="-24" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0019" x="678" y="1" width="350" height="561" rotated="true" frameX="-243" frameY="-34" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0020" x="1105" y="1037" width="249" height="410" rotated="true" frameX="-508" frameY="-11" frameWidth="923" frameHeight="443"/>
+	<SubTexture name="NOTE COMBO animation0021" x="557" y="1075" width="1" height="1" frameX="-0" frameY="-0" frameWidth="923" frameHeight="443"/>
+</TextureAtlas>

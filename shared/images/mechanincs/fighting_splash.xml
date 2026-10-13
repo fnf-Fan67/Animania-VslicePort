@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="fighting splash.png">
+	<!-- Created with Adobe Animate version 24.0.0.305 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="splash0000" x="1" y="1" width="220" height="225" frameX="-16" frameY="-24" frameWidth="259" frameHeight="269" rotated="false"/>
+	<SubTexture name="splash0001" x="222" y="1" width="236" height="242" frameX="-9" frameY="-15" frameWidth="259" frameHeight="269" rotated="false"/>
+	<SubTexture name="splash0002" x="1" y="244" width="252" height="262" frameX="-3" frameY="-3" frameWidth="259" frameHeight="269" rotated="false"/>
+	<SubTexture name="splash0003" x="254" y="244" width="259" height="269"/>
+</TextureAtlas>

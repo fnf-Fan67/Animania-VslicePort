@@ -1,0 +1,417 @@
+{
+	"version": "1.0.0",
+	"singTime": 5.0,
+	"name": "Mommy and Daddy ANIMANIA! (Festive)",
+	"assetPath": "shared:characters/amtake/parents/parents-amtake",
+	"renderType": "animateatlas",
+	"danceEvery": 2,
+	"scale": 1,
+	"offsets": [0, 25],
+	"cameraOffsets": [550, 0],
+	"startingAnimation": "danceRight",
+	"healthIcon": {
+		"id": "parents-amtake",
+		"scale": 0.9,
+		"offsets": [0, -10]
+	},
+	"animations": [
+		{
+			"name": "danceLeft",
+			"prefix": "idle 1",
+			"frameIndices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "danceLeft-hold",
+			"prefix": "idle 1 loop",
+			"frameIndices": [0, 1],
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "danceRight",
+			"prefix": "idle 2",
+			"frameIndices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "danceRight-hold",
+			"prefix": "idle 2 loop",
+			"frameIndices": [0, 1],
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "laugh",
+			"prefix": "Laugh",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "drop50",
+			"prefix": "Mock",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "eggL",
+			"prefix": "Mock",
+			"frameIndices": [
+				0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5
+			],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "drop100",
+			"prefix": "Laugh",
+			"frameIndices": [
+				0, 1, 2, 3, 4, 5, 5, 0, 1, 2, 3, 4, 5, 5, 0, 1, 2, 3, 4, 5, 5
+			],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "drop50-hold",
+			"prefix": "mock loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "kiss",
+			"prefix": "kiss",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT-both",
+			"prefix": "Left Both",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT-both-hold",
+			"prefix": "left both loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-both",
+			"prefix": "Down Both",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-both-hold",
+			"prefix": "down both loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-both",
+			"prefix": "Up Both",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-both-hold",
+			"prefix": "up both loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-both",
+			"prefix": "Right Both",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-both-hold",
+			"prefix": "right both loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHTmiss",
+			"prefix": "Right Miss",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT",
+			"prefix": "Left Dad",
+			"frameIndices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT-hold",
+			"prefix": "left dad loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN",
+			"prefix": "Down Dad",
+			"frameIndices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-hold",
+			"prefix": "down dad loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP",
+			"prefix": "Up Dad",
+			"frameIndices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-hold",
+			"prefix": "up dad loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT",
+			"prefix": "Right Dad",
+			"frameIndices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-hold",
+			"prefix": "right dad loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT-alt",
+			"prefix": "Left Mom",
+			"frameIndices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT-alt-hold",
+			"prefix": "left mom loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-alt",
+			"prefix": "Down Mom",
+			"frameIndices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-alt-hold",
+			"prefix": "down mom loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-alt",
+			"prefix": "Up Mom",
+			"frameIndices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-alt-hold",
+			"prefix": "up mom loop",
+			"frameIndices": [0, 1],
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-alt",
+			"prefix": "Right Mom",
+			"frameIndices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-alt-hold",
+			"prefix": "right mom loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "idle-angry",
+			"prefix": "Idle Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "idle-angry-hold",
+			"prefix": "idle angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "bruh",
+			"prefix": "Bruh",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "bruh-hold",
+			"prefix": "bruh loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT-both-angry",
+			"prefix": "Left Both Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT-both-angry-hold",
+			"prefix": "left both angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-both-angry",
+			"prefix": "Down Both Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-both-angry-hold",
+			"prefix": "down both angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-both-angry",
+			"prefix": "Up Both Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-both-angry-hold",
+			"prefix": "up both angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-both-angry",
+			"prefix": "Right Both Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-both-angry-hold",
+			"prefix": "right both angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+
+		{
+			"name": "singLEFT-angry",
+			"prefix": "Left Dad Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT-angry-hold",
+			"prefix": "left dad angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-angry",
+			"prefix": "Down Dad Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-angry-hold",
+			"prefix": "down dad angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-angry",
+			"prefix": "Up Dad Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-angry-hold",
+			"prefix": "up dad angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-angry",
+			"prefix": "Right Dad Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-angry-hold",
+			"prefix": "right dad angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT-alt-angry",
+			"prefix": "Left Mom Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT-alt-angry-hold",
+			"prefix": "left mom angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-alt-angry",
+			"prefix": "Down Mom Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-alt-angry-hold",
+			"prefix": "down mom angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-alt-angry",
+			"prefix": "Up Mom Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-alt-angry-hold",
+			"prefix": "up mom angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-alt-angry",
+			"prefix": "Right Mom Angry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-alt-angry-hold",
+			"prefix": "right mom angry loop",
+			"looped": true,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "cocoaSolo",
+			"prefix": "Solotime Cocoa",
+			"offsets": [0, 0],
+			"frameIndices": [0, 1, 2, 3],
+			"looped": true
+		},
+		{
+			"name": "cocoaSoloLookLeft",
+			"prefix": "Solotime Cocoa",
+			"frameIndices": [10, 11, 12, 13],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "cocoaSoloLeft",
+			"prefix": "Solotime Cocoa",
+			"frameIndices": [
+				14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+				30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44
+			],
+			"offsets": [0, 0],
+			"looped": true
+		},
+		{
+			"name": "cocoaSoloLookRight",
+			"prefix": "Solotime Cocoa",
+			"frameIndices": [45, 46, 47, 48],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "endCutscene",
+			"prefix": "End",
+			"offsets": [0, 0]
+		}
+	]
+}

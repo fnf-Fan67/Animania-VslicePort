@@ -1,0 +1,43 @@
+{
+	"version": "2.2.3",
+	"songName": "Eggnog (AmTake)",
+	"artist": "d4rkWinged feat. Simon",
+	"charter": "PurSnake + d4rkwinged",
+	"divisions": 96,
+	"offsets": { },
+	"playData": {
+		"songVariations": [],
+		"difficulties": ["easy", "normal", "hard"],
+
+		"characters": {
+			"player": "bf-christmas-animania",
+			"girlfriend": "gf-christmas-animania",
+			"opponent": "parents-christmas-animania",
+			"opponentVocals": ["parents-christmas"],
+			"playerVocals": ["bf-christmas"]
+		},
+		"stage": "xMasCityMallAmTakeDark",
+		"noteStyle": "amtake-xmas",
+		"ratings": {
+			"easy": 5,
+			"normal": 7,
+			"hard": 8
+		},
+		"album": "animania05",
+		"stickerPack": "week5",
+		"previewStart": 0,
+		"previewEnd": 0
+	},
+	"generatedBy": "Friday Night Funkin': Animania! - v0.5(r)",
+	"timeFormat": "ms",
+	"timeChanges": [
+		{
+			"t": 0,
+			"b": 0,
+			"bpm": 145,
+			"n": 4,
+			"d": 4,
+			"bt": [4, 4, 4, 4]
+		}
+	]
+}

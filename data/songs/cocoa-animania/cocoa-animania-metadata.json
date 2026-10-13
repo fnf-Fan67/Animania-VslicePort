@@ -1,0 +1,56 @@
+{
+  "version": "2.2.4",
+  "songName": "Cocoa (AmTake)",
+  "artist": "simnsnd",
+  "charter": "PurSnake",
+  "divisions": 96,
+  "offsets": { },
+  "playData": {
+    "songVariations": [    ],
+    "difficulties": [
+      "easy",
+      "normal",
+      "hard"
+    ],
+    "characters": {
+      "player": "bf-christmas-animania",
+      "girlfriend": "gf-christmas-animania",
+      "opponent": "parents-christmas-animania",
+      "instrumental": "",
+      "altInstrumentals": [      ],
+      "opponentVocals": [
+        "parents-christmas"
+      ],
+      "playerVocals": [
+        "bf-christmas"
+      ]
+    },
+    "stage": "xMasCityMallAmTake",
+    "noteStyle": "amtake-xmas",
+    "ratings": {
+      "easy": 5,
+      "hard": 7,
+      "normal": 6
+    },
+    "album": "expansionMini",
+    "previewStart": 0,
+    "previewEnd": 0
+  },
+  "generatedBy": "Friday Night Funkin': Animania! - v0.6.0 DEVELOPER",
+  "timeFormat": "ms",
+  "timeChanges": [
+    {
+      "t": 0,
+      "b": 0,
+      "bpm": 117,
+      "n": 4,
+      "d": 4,
+      "bt": [
+        4,
+        4,
+        4,
+        4
+      ]
+    }
+  ]
+}

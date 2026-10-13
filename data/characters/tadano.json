@@ -1,0 +1,110 @@
+{
+	"version": "1.0.0",
+	"name": "Tadano (Phone Call)",
+	"renderType": "multianimateatlas",
+	"assetPath": "shared:characters/phonecall/tadano",
+	"flipX": true,
+	"singTime": 6.0,
+	"startingAnimation": "idle",
+	"offsets": [250, 180],
+	"atlasSettings": {
+		"applyStageMatrix": false
+	},
+	"cameraOffsets": [-250, 100],
+	"healthIcon": {
+		"id": "tadano",
+		"offsets": [-5, -5],
+		"scale": 0.9
+	},
+	"death": {
+		"cameraOffsets": [-350, 50],
+		"cameraZoom": 1.05
+	},
+	"animations": [
+		{
+			"name": "idle",
+			"prefix": "idle"
+		},
+		{
+			"name": "singLEFT",
+			"prefix": "left"
+		},
+		{
+			"name": "singDOWN",
+			"prefix": "down"
+		},
+		{
+			"name": "singUP",
+			"prefix": "up"
+		},
+		{
+			"name": "singRIGHT",
+			"prefix": "right"
+		},
+		{
+			"name": "singLEFTmiss",
+			"prefix": "left miss"
+		},
+		{
+			"name": "singDOWNmiss",
+			"prefix": "down miss"
+		},
+		{
+			"name": "singUPmiss",
+			"prefix": "up miss"
+		},
+		{
+			"name": "singRIGHTmiss",
+			"prefix": "right miss"
+		},
+		{
+			"name": "idle-alt",
+			"prefix": "idle alt"
+		},
+		{
+			"name": "singLEFT-alt",
+			"prefix": "left alt"
+		},
+		{
+			"name": "singDOWN-alt",
+			"prefix": "down alt"
+		},
+		{
+			"name": "singUP-alt",
+			"prefix": "up alt"
+		},
+		{
+			"name": "singRIGHT-alt",
+			"prefix": "right alt"
+		},
+		{
+			"name": "singLEFTmiss-alt",
+			"prefix": "left alt miss"
+		},
+		{
+			"name": "singDOWNmiss-alt",
+			"prefix": "down alt miss"
+		},
+		{
+			"name": "singUPmiss-alt",
+			"prefix": "up alt miss"
+		},
+		{
+			"name": "singRIGHTmiss-alt",
+			"prefix": "right alt miss"
+		},
+		{
+			"name": "intro",
+			"prefix": "intro"
+		},
+		{
+			"name": "firstDeath",
+			"prefix": "deathStart"
+		},
+		{
+			"name": "deathLoop",
+			"prefix": "deathLoop",
+			"looped": true
+		}
+	]
+}

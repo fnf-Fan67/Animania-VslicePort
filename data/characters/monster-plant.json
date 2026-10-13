@@ -1,0 +1,131 @@
+{
+	"version": "1.0.0",
+	"singTime": 6.0,
+	"name": "Monster (Plant)",
+	"assetPath": "shared:characters/amtake/week5/monster-plant",
+	"renderType": "animateatlas",
+	"danceEvery": 2,
+	"scale": 1,
+	"offsets": [0, 0],
+	"cameraOffsets": [0, 0],
+	"healthIcon": {
+		"id": "monster-boss",
+		"scale": 0.9,
+		"offsets" : [-10, -10]
+	},
+	"animations": [
+		{
+			"name": "idle",
+			"prefix": "monsta idle",
+			"looped": true
+		},
+		{
+			"name": "singLEFT",
+			"prefix": "monsta left"
+		},
+		{
+			"name": "singLEFT-hold",
+			"looped": true,
+			"prefix": "left loop"
+		},
+		{
+			"name": "singDOWN",
+			"prefix": "monsta down"
+		},
+		{
+			"name": "singDOWN-hold",
+			"looped": true,
+			"prefix": "down loop"
+		},
+		{
+			"name": "singUP",
+			"prefix": "monsta up"
+		},
+		{
+			"name": "singUP-hold",
+			"looped": true,
+			"prefix": "up loop"
+		},
+		{
+			"name": "singRIGHT",
+			"prefix": "monsta right"
+		},
+		{
+			"name": "singRIGHT-hold",
+			"looped": true,
+			"prefix": "right loop"
+		},
+
+		{
+			"name": "danceLeft",
+			"prefix": "monsta alt dance left"
+		},
+		{
+			"name": "danceRight",
+			"prefix": "monsta alt dance right"
+		},
+
+		{
+			"name": "singLEFT-alt",
+			"prefix": "monsta alt left"
+		},
+		{
+			"name": "singLEFT-alt-hold",
+			"looped": true,
+			"prefix": "alt left loop"
+		},
+		{
+			"name": "singDOWN-alt",
+			"prefix": "monsta alt down"
+		},
+		{
+			"name": "singDOWN-alt-hold",
+			"looped": true,
+			"prefix": "alt down loop"
+		},
+		{
+			"name": "singUP-alt",
+			"prefix": "monsta alt up"
+		},
+		{
+			"name": "singUP-alt-hold",
+			"looped": true,
+			"prefix": "alt up loop"
+		},
+		{
+			"name": "singRIGHT-alt",
+			"prefix": "monsta alt right"
+		},
+		{
+			"name": "singRIGHT-alt-hold",
+			"looped": true,
+			"prefix": "alt right loop"
+		},
+
+		{
+			"name": "trans",
+			"prefix": "monsta trans"
+		},
+		{
+			"name": "hit",
+			"frameRate": 36,
+			"prefix": "monsta hit"
+		},
+		{
+			"name": "hit-hold",
+			"looped": true,
+			"prefix": "hit loop"
+		},
+		
+
+		{
+			"name": "laugh",
+			"prefix": "monsta laugh"
+		},
+		{
+			"name": "laugh-hold",
+			"looped": true,
+			"prefix": "laugh loop"
+		}
+	]
+}

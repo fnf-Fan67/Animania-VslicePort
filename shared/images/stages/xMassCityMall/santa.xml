@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="santa.png">
+	<!-- Created with Adobe Animate version 24.0.0.305 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="santa0000" x="2724" y="651" width="674" height="634" frameX="-31" frameY="-18" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0001" x="706" y="656" width="674" height="647" frameX="-31" frameY="-5" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0002" x="1382" y="656" width="669" height="647" frameX="-33" frameY="-5" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0003" x="2" y="2" width="695" height="652" frameX="-8" frameY="0" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0004" x="699" y="2" width="694" height="652" frameX="-8" frameY="0" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0005" x="2" y="656" width="702" height="645" frameX="0" frameY="-7" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0006" x="1395" y="2" width="669" height="647" frameX="-33" frameY="-5" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0007" x="2053" y="651" width="669" height="647" frameX="-33" frameY="-5" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0008" x="2066" y="2" width="669" height="647" frameX="-33" frameY="-5" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0009" x="1395" y="2" width="669" height="647" frameX="-33" frameY="-5" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0010" x="2053" y="651" width="669" height="647" frameX="-33" frameY="-5" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0011" x="2066" y="2" width="669" height="647" frameX="-33" frameY="-5" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0012" x="1395" y="2" width="669" height="647" frameX="-33" frameY="-5" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0013" x="2053" y="651" width="669" height="647" frameX="-33" frameY="-5" frameWidth="705" frameHeight="652" rotated="false"/>
+	<SubTexture name="santa0014" x="2066" y="2" width="669" height="647" frameX="-33" frameY="-5" frameWidth="705" frameHeight="652" rotated="false"/>
+</TextureAtlas>

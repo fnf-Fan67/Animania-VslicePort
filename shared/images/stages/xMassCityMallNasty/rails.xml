@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="rails.png">
+	<!-- Created with Adobe Animate version 24.0.0.305 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="1st rail0000" x="0" y="0" width="1451" height="589"/>
+	<SubTexture name="2nd rail0000" x="1451" y="0" width="5031" height="1673"/>
+	<SubTexture name="rail0000" x="0" y="1673" width="2556" height="1724"/>
+</TextureAtlas>

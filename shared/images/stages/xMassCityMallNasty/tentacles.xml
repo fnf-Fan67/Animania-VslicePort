@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="tentacles.png">
+	<!-- Created with Adobe Animate version 24.0.0.305 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="root attack left0000" x="4364" y="307" width="396" height="303" frameX="13" frameY="249" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0001" x="2081" y="959" width="602" height="400" frameX="104" frameY="350" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0002" x="2" y="509" width="867" height="400" frameX="189" frameY="350" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0003" x="3264" y="2" width="1098" height="486" frameX="189" frameY="348" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0004" x="2" y="2" width="1631" height="505" frameX="199" frameY="367" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0005" x="2463" y="509" width="723" height="448" frameX="199" frameY="367" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0006" x="739" y="911" width="734" height="435" frameX="210" frameY="354" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0007" x="3288" y="978" width="600" height="392" frameX="210" frameY="354" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0008" x="3890" y="978" width="621" height="353" frameX="211" frameY="319" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0009" x="3332" y="1372" width="273" height="129" frameX="126" frameY="95" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0010" x="4513" y="1380" width="153" height="94" frameX="23" frameY="62" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0011" x="4764" y="2" width="69" height="61" frameX="-59" frameY="29" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0012" x="2" y="2" width="0" height="0" frameX="0" frameY="0" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0013" x="2" y="2" width="0" height="0" frameX="0" frameY="0" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack left0014" x="2" y="2" width="0" height="0" frameX="0" frameY="0" frameWidth="1643" frameHeight="505"/>
+	<SubTexture name="root attack right0000" x="4364" y="2" width="398" height="303" frameX="-671" frameY="249" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0001" x="1475" y="959" width="604" height="400" frameX="-556" frameY="350" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0002" x="871" y="509" width="864" height="400" frameX="-380" frameY="350" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0003" x="3264" y="490" width="1095" height="486" frameX="-149" frameY="348" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0004" x="1635" y="2" width="1627" height="505" frameX="373" frameY="367" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0005" x="1737" y="509" width="724" height="448" frameX="-530" frameY="367" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0006" x="2" y="911" width="735" height="435" frameX="-530" frameY="354" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0007" x="2685" y="978" width="601" height="392" frameX="-664" frameY="354" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0008" x="3890" y="1333" width="621" height="353" frameX="-645" frameY="319" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0009" x="3056" y="1372" width="274" height="129" frameX="-907" frameY="95" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0010" x="3607" y="1372" width="154" height="94" frameX="-924" frameY="62" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0011" x="4764" y="65" width="68" height="61" frameX="-927" frameY="29" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0012" x="2" y="2" width="0" height="0" frameX="0" frameY="0" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0013" x="2" y="2" width="0" height="0" frameX="0" frameY="0" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="root attack right0014" x="2" y="2" width="0" height="0" frameX="0" frameY="0" frameWidth="1639" frameHeight="505"/>
+	<SubTexture name="warn splash left0000" x="2052" y="1361" width="249" height="283" frameX="10" frameY="239" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0001" x="2303" y="1361" width="249" height="283" frameX="10" frameY="239" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0002" x="4513" y="612" width="268" height="382" frameX="7" frameY="335" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0003" x="4513" y="996" width="268" height="382" frameX="7" frameY="335" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0004" x="1066" y="1348" width="251" height="352" frameX="4" frameY="309" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0005" x="542" y="1348" width="260" height="352" frameX="13" frameY="309" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0006" x="1572" y="1361" width="238" height="356" frameX="-3" frameY="314" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0007" x="1572" y="1361" width="238" height="356" frameX="-3" frameY="314" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0008" x="1812" y="1361" width="238" height="356" frameX="-3" frameY="314" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0009" x="1812" y="1361" width="238" height="356" frameX="-3" frameY="314" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0010" x="1475" y="911" width="238" height="41" frameX="-3" frameY="-1" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0011" x="1475" y="911" width="238" height="41" frameX="-3" frameY="-1" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0012" x="1475" y="911" width="238" height="41" frameX="-3" frameY="-1" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0013" x="1475" y="911" width="238" height="41" frameX="-3" frameY="-1" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash left0014" x="1475" y="911" width="238" height="41" frameX="-3" frameY="-1" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0000" x="2554" y="1372" width="249" height="283" frameX="10" frameY="239" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0001" x="2805" y="1372" width="249" height="283" frameX="10" frameY="239" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0002" x="2" y="1348" width="268" height="382" frameX="7" frameY="335" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0003" x="272" y="1348" width="268" height="382" frameX="7" frameY="335" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0004" x="1319" y="1361" width="251" height="352" frameX="4" frameY="309" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0005" x="804" y="1348" width="260" height="352" frameX="13" frameY="309" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0006" x="1572" y="1361" width="238" height="356" frameX="-3" frameY="314" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0007" x="1572" y="1361" width="238" height="356" frameX="-3" frameY="314" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0008" x="1812" y="1361" width="238" height="356" frameX="-3" frameY="314" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0009" x="1812" y="1361" width="238" height="356" frameX="-3" frameY="314" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0010" x="1475" y="911" width="238" height="41" frameX="-3" frameY="-1" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0011" x="1475" y="911" width="238" height="41" frameX="-3" frameY="-1" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0012" x="1475" y="911" width="238" height="41" frameX="-3" frameY="-1" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0013" x="1475" y="911" width="238" height="41" frameX="-3" frameY="-1" frameWidth="274" frameHeight="382"/>
+	<SubTexture name="warn splash right0014" x="1475" y="911" width="238" height="41" frameX="-3" frameY="-1" frameWidth="274" frameHeight="382"/>
+</TextureAtlas>

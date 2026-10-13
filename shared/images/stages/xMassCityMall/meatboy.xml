@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="meatboy.png">
+	<!-- Created with Adobe Animate version 24.0.0.305 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="meatbo0000" x="441" y="384" width="444" height="368" frameX="0" frameY="-20" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0001" x="441" y="384" width="444" height="368" frameX="0" frameY="-20" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0002" x="1" y="386" width="439" height="373" frameX="-2" frameY="-13" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0003" x="1" y="386" width="439" height="373" frameX="-2" frameY="-13" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0004" x="436" y="1" width="436" height="382" frameX="-3" frameY="-2" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0005" x="436" y="1" width="436" height="382" frameX="-3" frameY="-2" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0006" x="1" y="1" width="434" height="384" frameX="-4" frameY="0" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0007" x="1" y="1" width="434" height="384" frameX="-4" frameY="0" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0008" x="1" y="1" width="434" height="384" frameX="-4" frameY="0" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0009" x="1" y="1" width="434" height="384" frameX="-4" frameY="0" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0010" x="1" y="1" width="434" height="384" frameX="-4" frameY="0" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0011" x="1" y="1" width="434" height="384" frameX="-4" frameY="0" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0012" x="1" y="1" width="434" height="384" frameX="-4" frameY="0" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0013" x="1" y="1" width="434" height="384" frameX="-4" frameY="0" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0014" x="1" y="1" width="434" height="384" frameX="-4" frameY="0" frameWidth="444" frameHeight="388" rotated="false"/>
+	<SubTexture name="meatbo0015" x="1" y="1" width="434" height="384" frameX="-4" frameY="0" frameWidth="444" frameHeight="388" rotated="false"/>
+</TextureAtlas>

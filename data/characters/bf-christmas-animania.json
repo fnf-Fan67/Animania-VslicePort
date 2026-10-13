@@ -1,0 +1,234 @@
+{
+	"version": "1.0.0",
+	"name": "Boyfriend ANIMANIA! (Christmas)",
+	"assetPath": "shared:characters/amtake/bf/bf-xmas",
+	"flipX": true,
+	"offsets": [
+		0,
+		25
+	],
+	"cameraOffsets": [-350, 35],
+	"healthIcon": {
+		"id": "bf-amtake",
+		"flipX": true,
+		"scale": 0.8,
+		"offsets": [-10, -10]
+	},
+	"renderType": "multianimateatlas",
+	"singTime": 6.0,
+	"death": {
+		"cameraOffsets": [-150, 175],
+		"cameraZoom": 1.1
+	},
+	"animations": [
+		{
+			"name": "idle",
+			"prefix": "idle",
+			"frameIndices": [],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT",
+			"prefix": "left",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN",
+			"prefix": "down",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP",
+			"prefix": "up",
+			"offsets":[0, 0]
+		},
+		{
+			"name": "singRIGHT",
+			"prefix": "right",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFTmiss",
+			"prefix": "miss left",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWNmiss",
+			"prefix": "miss down",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUPmiss",
+			"prefix": "miss up",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHTmiss",
+			"prefix": "miss right",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singLEFT-alt",
+			"prefix": "xmas left",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWN-alt",
+			"prefix": "xmas down",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUP-alt",
+			"prefix": "xmas up",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHT-alt",
+			"prefix": "xmas right",
+			"offsets": [0, 0]
+		},
+
+		{
+			"name": "singLEFTmiss-alt",
+			"prefix": "miss xmas left",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singDOWNmiss-alt",
+			"prefix": "miss xmas down",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singUPmiss-alt",
+			"prefix": "miss xmas up",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "singRIGHTmiss-alt",
+			"prefix": "miss xmas right",
+			"offsets": [0, 0]
+		},
+
+		{
+			"name": "snowballed",
+			"prefix": "eggnog animation",
+			"offsets": [0, 0]
+		},
+
+
+
+		{
+			"name": "dodge1",
+			"prefix": "dodge 1",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "dodge2",
+			"prefix": "dodge 2",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "dodge3",
+			"prefix": "dodge 3",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "pre attack",
+			"prefix": "pre attack",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "attack",
+			"prefix": "attack",
+			"frameRate": 36,
+			"offsets": [0, 0]
+		},
+		{
+			"name": "parry",
+			"prefix": "parry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "left hit",
+			"prefix": "left hit",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "right hit",
+			"prefix": "right hit",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "fuck you",
+			"prefix": "fuck you",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "hey",
+			"prefix": "hey",
+			"offsets": [0, 0]
+		},
+		{
+			"animType": "framelabel",
+			"atlasSettings": null,
+			"prefix": "first",
+			"assetPath": "shared:characters/amtake/bf/bf-xmas-death",
+			"offsets": [43, 146],
+			"name": "firstDeath",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"prefix": "loop",
+			"assetPath": "shared:characters/amtake/bf/bf-xmas-death",
+			"offsets": [43, 146],
+			"name": "deathLoop",
+			"looped": true
+		},
+		{
+			"animType": "framelabel",
+			"prefix": "confirm",
+			"assetPath": "shared:characters/amtake/bf/bf-xmas-death",
+			"offsets": [43, 146],
+			"frameRate": 24,
+			"name": "deathConfirm",
+			"looped": false
+		},
+		{
+			    "animType": "framelabel",
+			    "atlasSettings": null,
+			    "prefix": "start-wh",
+			    "assetPath": "shared:characters/amtake/week5/bf-xmas-wh-death",
+			    "offsets": [875, 1722],
+			    "name": "firstDeath-wh",
+			    "looped": false
+		    },
+		    {
+			    "animType": "framelabel",
+			    "prefix": "loop-wh",
+			    "assetPath": "shared:characters/amtake/week5/bf-xmas-wh-death",
+			    "offsets": [875, 1722],
+			    "name": "deathLoop-wh",
+			    "looped": true
+		    },
+			{
+			    "animType": "framelabel",
+			    "atlasSettings": null,
+			    "prefix": "confirm-wh",
+			    "assetPath": "shared:characters/amtake/week5/bf-xmas-wh-death",
+			    "offsets": [875, 1722],
+			    "name": "deathConfirm-wh",
+			    "looped": false
+		    },
+			{
+			    "animType": "framelabel",
+			    "atlasSettings": null,
+			    "prefix": "confirm-wh",
+			    "assetPath": "shared:characters/amtake/week5/bf-xmas-wh-death",
+			    "offsets": [875, 1722],
+                "frameIndices": [57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69],
+			    "name": "deathConfirm-wh-loop",
+			    "looped": true
+		    }
+	]
+}

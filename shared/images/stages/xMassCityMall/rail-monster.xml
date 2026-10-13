@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="rail-monster.png">
+	<!-- Created with Adobe Animate version 24.0.0.305 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="monster symb0000" x="1" y="1" width="309" height="291"/>
+	<SubTexture name="monster symb0001" x="1" y="1" width="309" height="291"/>
+	<SubTexture name="monster symb0002" x="1" y="1" width="309" height="291"/>
+	<SubTexture name="monster symb0003" x="311" y="1" width="309" height="291"/>
+	<SubTexture name="monster symb0004" x="311" y="1" width="309" height="291"/>
+	<SubTexture name="monster symb0005" x="311" y="1" width="309" height="291"/>
+	<SubTexture name="monster symb0006" x="621" y="1" width="309" height="291"/>
+	<SubTexture name="monster symb0007" x="621" y="1" width="309" height="291"/>
+	<SubTexture name="monster symb0008" x="621" y="1" width="309" height="291"/>
+</TextureAtlas>

@@ -1,0 +1,490 @@
+{
+	"version": "1.0.0",
+	"renderType": "animateatlas",
+	"offsets": [
+		0,
+		-100
+	],
+	"danceEvery": 1,
+	"applyStageMatrix": false,
+	"scale": 1,
+	"name": "Girlfriend (NoSpeakers)",
+	"flipX": false,
+	"cameraOffsets": [
+		700,
+		350
+	],
+	"singTime": 6.1,
+	"startingAnimation": "danceRight",
+	"isPixel": false,
+	"assetPath": "shared:characters/amtake/gf/gf-standart",
+	"healthIcon": {
+		"isPixel": false,
+		"shouldBop": true,
+		"offsets": [
+			0,
+			0
+		],
+		"scale": 1,
+		"flipX": false,
+		"id": "gf"
+	},
+	"atlasSettings": {
+		"useRenderTexture": false,
+		"swfMode": false,
+		"filterQuality": 1,
+		"applyStageMatrix": false
+	},
+	"animations": [
+		{
+			"offsets": [
+				0,
+				0
+			],
+			"frameIndices": [
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10,
+				11,
+				12,
+				13,
+				14
+			],
+			"prefix": "idle",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "danceLeft",
+			"flipY": false,
+			"frameRate": 24
+		},
+		{
+			"offsets": [
+				0,
+				0
+			],
+			"frameIndices": [
+				15,
+				16,
+				17,
+				18,
+				19,
+				20,
+				21,
+				22,
+				23,
+				24,
+				25,
+				26,
+				27,
+				28,
+				29
+			],
+			"prefix": "idle",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "danceRight",
+			"flipY": false,
+			"frameRate": 24
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "count three",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "count three"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "count two",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "count two"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "count one",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "count one"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "cheer",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "cheer"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "cheer",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "hey"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "cheer",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "combo100"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "sob",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "sob"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "sob",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "drop80"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "left",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "singLEFT"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "down",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "singDOWN"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "up",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "singUP"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "right",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "singRIGHT"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "fresh solo",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "fresh solo"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "drop dance left",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "danceLeft-drop"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "drop dance right",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "danceRight-drop"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "pre dance",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "pre-dance"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "dance left",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "danceLeft-dance"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "dance right",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "danceRight-dance"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "end dance",
+			"animType": "framelabel",
+			"flipX": false,
+			"looped": false,
+			"name": "end-dance"
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "normal talk",
+			"animType": "framelabel",
+			"flipX": false,
+			"name": "normal-talk",
+			"looped": true
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "happy talk",
+			"animType": "framelabel",
+			"flipX": false,
+			"name": "happy-talk",
+			"looped": true
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "right philly dance 2",
+			"frameIndices": [
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10
+			],
+			"animType": "framelabel",
+			"flipX": false,
+			"name": "danceRight-philly2",
+			"looped": false
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "left philly dance 1",
+			"frameIndices": [],
+			"animType": "framelabel",
+			"flipX": false,
+			"name": "danceLeft-philly2",
+			"looped": false
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "philly dance 2",
+			"frameIndices": [
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10
+			],
+			"animType": "framelabel",
+			"flipX": false,
+			"name": "danceRight-philly",
+			"looped": false
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "philly dance 2",
+			"frameIndices": [
+				11,
+				12,
+				13,
+				14,
+				15,
+				16,
+				17,
+				18,
+				19,
+				20
+			],
+			"animType": "framelabel",
+			"flipX": false,
+			"name": "danceLeft-philly",
+			"looped": false
+		},
+		{
+			"flipY": false,
+			"offsets": [
+				0,
+				0
+			],
+			"frameRate": 24,
+			"prefix": "philly dance 3",
+			"frameIndices": [
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10
+			],
+			"animType": "framelabel",
+			"flipX": false,
+			"name": "combo100-alt",
+			"looped": false
+		}
+	]
+}

@@ -1,0 +1,118 @@
+{
+	"renderType": "animateatlas",
+	"offsets": [50, 50],
+	"startingAnimation": "idle",
+	"healthIcon": {
+		"id": "dad-amtake",
+		"flipX": false,
+		"scale": 0.8,
+		"offsets": [20, 0]
+	},
+	"assetPath": "shared:characters/amtake/dad/BEAST_DEAREST",
+	"version": "1.0.0",
+	"danceEvery": 1,
+	"scale": 1,
+	"cameraOffsets": [-670, -1575],
+	"flipX": false,
+	"name": "Daddy Dearest (BEAST)",
+	"singTime": 8,
+	"atlasSettings": {
+		"applyStageMatrix": false,
+		"useRenderTexture": false,
+		"filterQuality": 1,
+		"cacheOnLoad": true,
+		"uniqueInCache": true,
+		"swfMode": false
+	},
+	"animations": [
+		{
+			"prefix": "idle",
+			"name": "idle",
+			"looped": true
+		},
+		{
+			"prefix": "idle loop",
+			"name": "idle-hold",
+			"looped": true
+		},
+		{
+			"prefix": "left",
+			"name": "singLEFT"
+		},
+		{
+			"prefix": "left loop",
+			"name": "singLEFT-hold",
+			"looped": true
+		},
+		{
+			"prefix": "down",
+			"name": "singDOWN"
+		},
+		{
+			"prefix": "down loop",
+			"name": "singDOWN-hold",
+			"looped": true
+		},
+		{
+			"prefix": "up",
+			"name": "singUP"
+		},
+		{
+			"prefix": "up loop",
+			"name": "singUP-hold",
+			"looped": true
+		},
+		{
+			"prefix": "right",
+			"name": "singRIGHT"
+		},
+		{
+			"prefix": "right loop",
+			"name": "singRIGHT-hold",
+			"looped": true
+		},
+
+		{
+			"prefix": "alt idle",
+			"name": "idle-alt"
+		},
+
+		{
+			"prefix": "alt left",
+			"name": "singLEFT-alt"
+		},
+		{
+			"prefix": "alt left loop",
+			"name": "singLEFT-alt-hold",
+			"looped": true
+		},
+		{
+			"prefix": "alt down",
+			"name": "singDOWN-alt"
+		},
+		{
+			"prefix": "alt up",
+			"name": "singUP-alt"
+		},
+		{
+			"prefix": "alt up loop",
+			"name": "singUP-alt-hold",
+			"looped": true
+		},
+
+		{
+			"prefix": "alt right",
+			"name": "singRIGHT-alt"
+		},
+		{
+			"prefix": "alt right loop",
+			"name": "singRIGHT-alt-hold",
+			"looped": true
+		},
+
+		{
+			"prefix": "lightShock",
+			"name": "lights off"
+		}
+	]
+}

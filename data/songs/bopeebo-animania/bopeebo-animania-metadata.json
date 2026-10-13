@@ -1,0 +1,47 @@
+{
+	"version": "2.2.4",
+	"songName": "Bopeebo (AmTake)",
+	"artist": "BruhLeebert",
+	"charter": "PurSk",
+	"divisions": 96,
+	"playData": {
+		"difficulties": [
+			"easy",
+			"normal",
+			"hard"
+		],
+		"characters": {
+			"player": "bf-animania",
+			"opponent": "dad-animania",
+			"girlfriend": "gf-animania",
+			"opponentVocals": [
+				"dad"
+			],
+			"playerVocals": [
+				"bf"
+			]
+		},
+		"stage": "mainStageAmTake",
+		"noteStyle": "amtake-base",
+		"ratings": {
+			"easy": 5,
+			"normal": 7,
+			"hard": 9
+		},
+		"album": "expansionMini",
+		"previewStart": 0,
+		"previewEnd": 0
+	},
+	"generatedBy": "Friday Night Funkin': Grafex - v0.4.0G",
+	"timeFormat": "ms",
+	"timeChanges": [
+		{
+			"t": 0,
+			"b": 0,
+			"bpm": 110,
+			"n": 4,
+			"d": 4,
+			"bt": [4, 4, 4, 4]
+		}
+	]
+}

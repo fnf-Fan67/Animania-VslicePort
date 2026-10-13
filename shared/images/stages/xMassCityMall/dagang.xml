@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="dagang.png">
+	<!-- Created with Adobe Animate version 24.0.0.305 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="dagang0000" x="827" y="1038" width="833" height="510" frameX="-1" frameY="-13" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0001" x="827" y="1038" width="833" height="510" frameX="-1" frameY="-13" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0002" x="827" y="522" width="832" height="515" frameX="0" frameY="-7" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0003" x="827" y="522" width="832" height="515" frameX="0" frameY="-7" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0004" x="1" y="1" width="827" height="520" frameX="-5" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0005" x="1" y="1" width="827" height="520" frameX="-5" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0006" x="829" y="1" width="825" height="520" frameX="-7" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0007" x="829" y="1" width="825" height="520" frameX="-7" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0008" x="1" y="522" width="825" height="520" frameX="-7" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0009" x="1" y="522" width="825" height="520" frameX="-7" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0010" x="1" y="522" width="825" height="520" frameX="-7" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0011" x="1" y="522" width="825" height="520" frameX="-7" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0012" x="1" y="1043" width="825" height="520" frameX="-7" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0013" x="1" y="1043" width="825" height="520" frameX="-7" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0014" x="1" y="1043" width="825" height="520" frameX="-7" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+	<SubTexture name="dagang0015" x="1" y="1043" width="825" height="520" frameX="-7" frameY="0" frameWidth="834" frameHeight="523" rotated="false"/>
+</TextureAtlas>

@@ -1,0 +1,47 @@
+{
+ "version": "2.2.4",
+ "songName": "DadBattle (AmTake)",
+ "artist": "Leebert",
+ "charter": "PurSnake",
+ "divisions": 96,
+ "offsets": { },
+ "playData": {
+  "difficulties": [
+   "easy",
+   "normal",
+   "hard"
+  ],
+  "characters": {
+   "player": "bf-animania",
+   "girlfriend": "gf-animania",
+   "opponent": "dad-beast",
+   "opponentVocals": [
+    "dad"
+   ],
+   "playerVocals": [
+    "bf"
+   ]
+  },
+  "stage": "serviceEnterance",
+  "noteStyle": "amtake-base",
+  "ratings": {
+   "easy": 5,
+   "normal": 7,
+   "hard": 8
+  },
+  "album": "expansionMini",
+  "stickerPack": "week1",
+  "previewEnd": 0.157377049180328
+ },
+ "generatedBy": "Friday Night Funkin' - v0.8.6",
+ "timeChanges": [
+  {
+	"t": 0,
+	"b": 0,
+	"bpm": 180,
+	"n": 4,
+	"d": 4,
+	"bt": [4, 4, 4, 4]
+  }
+ ]
+}

@@ -1,0 +1,147 @@
+{
+	"renderType": "multisparrow",
+	"offsets": [0, 0],
+	"startingAnimation": "idle",
+	"death": {
+		"cameraZoom": 1.1,
+		"cameraOffsets": [190, -40]
+	},
+	"healthIcon": {
+		"offsets": [-5, -5],
+		"id": "tadano",
+		"flipX": false,
+		"scale": 0.9
+	},
+	"assetPath": "characters/phonecall/tadano-stand",
+	"version": "1.0.0",
+	"danceEvery": 1,
+	"scale": 1,
+	"cameraOffsets": [200, 50],
+	"flipX": true,
+	"name": "Tadano Stand (Phone Call)",
+	"singTime": 8,
+	"isPixel": false,
+	"animations": [
+		{
+			"frameIndices": [],
+			"prefix": "idle",
+			"assetPath": null,
+			"offsets": [0, 0],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "idle",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "left",
+			"assetPath": null,
+			"offsets": [49, -4],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFT",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "down",
+			"assetPath": null,
+			"offsets": [10, -18],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWN",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "up",
+			"assetPath": null,
+			"offsets": [12, 15],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUP",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "right",
+			"assetPath": null,
+			"offsets": [-10, -1],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHT",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "missleft",
+			"assetPath": null,
+			"offsets": [49, -4],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFTmiss",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "missdown",
+			"assetPath": null,
+			"offsets": [10, -18],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWNmiss",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "missup",
+			"assetPath": null,
+			"offsets": [12, 15],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUPmiss",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "missright",
+			"assetPath": null,
+			"offsets": [-10, -1],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHTmiss",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "end",
+			"assetPath": null,
+			"offsets": [3, 2],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "endAnimation",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "tadanodeath",
+			"assetPath": null,
+			"offsets": [0, 0],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "firstDeath",
+			"looped": false
+		}
+	]
+}

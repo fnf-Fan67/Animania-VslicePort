@@ -1,0 +1,70 @@
+{
+	"version": "1.0.0",
+	"name": "Girlfriend ANIMANIA! (Christmas)",
+	"assetPath": "shared:characters/amtake/gf/gf-xmas",
+	"startingAnimation": "danceRight",
+	"flipX": false,
+	"atlasSettings":
+	{
+		"applyStageMatrix": false
+	},
+	"singTime": 6.0,
+	"offsets": [0, 0],
+	"cameraOffsets": [0, 0],
+	"healthIcon": {
+		"id": "gf"
+	},
+	"renderType": "animateatlas",
+	"animations": [
+		{
+			"name": "danceLeft",
+			"prefix": "danceLeft",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "danceRight",
+			"prefix": "danceRight",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "drop50",
+			"prefix": "cry",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "combo101",
+			"prefix": "hands100",
+			"frameIndices": [
+				0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2,
+				3, 4, 5, 0, 1, 2, 3, 4, 5
+			],
+			"offsets": [0, 0]
+		},
+		{
+			"name": "combo251",
+			"prefix": "comb250",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "cheer",
+			"prefix": "penis",
+			"offsets": [0, 0]
+		},
+
+		{
+			"name": "count3",
+			"prefix": "coun3",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "count2",
+			"prefix": "coun2",
+			"offsets": [0, 0]
+		},
+		{
+			"name": "count1",
+			"prefix": "coun1",
+			"offsets": [0, 0]
+		}
+	]
+}

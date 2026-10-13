@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "name": "Animania! OST Mini Expansion",
+  "artists": ["A lot of people"],
+  "albumArtAsset": "animania-freeplay/albumRoll/expansionMini",
+  "albumTitleAsset": "animania-freeplay/albumRoll/expansionMini-text",
+  "albumTitleOffsets": [-15, 0]
+}

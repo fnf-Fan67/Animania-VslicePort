@@ -1,0 +1,289 @@
+{
+	"props": [
+		{
+			"danceEvery": 0,
+			"zIndex": 0,
+			"position": [-1250, -750],
+			"scale": [1, 1],
+			"animType": "sparrow",
+			"name": "skybox",
+			"assetPath": "stages/serviceEnterance/skybox",
+			"scroll": [0.5, 0.5],
+			"animations": []
+		},
+		{
+			"danceEvery": 0,
+			"zIndex": 2,
+			"position": [-1700, -1300],
+			"scale": [1, 1],
+			"animType": "animateatlas",
+			"name": "skyboxCity",
+			"assetPath": "stages/serviceEnterance/city far",
+			"scroll": [0.6, 0.7],
+			"startingAnimation": "doug",
+			"animations": [
+				{
+					"name": "doug",
+					"looped": true,
+					"prefix": "city far"
+				}
+			]
+		},
+		{
+			"danceEvery": 0,
+			"zIndex": 3,
+			"alpha": 0.4,
+			"blend": "add",
+			"position": [-1400, -50],
+			"scale": [1, 1],
+			"animType": "sparrow",
+			"name": "bgMist1",
+			"assetPath": "stages/serviceEnterance/bg_mist",
+			"scroll": [0.8, 0.8],
+			"animations": []
+		},
+
+		{
+			"danceEvery": 0,
+			"zIndex": 9,
+			"animType": "animateatlas",
+			"position": [-1320, -350],
+			"name": "bulbb",
+			"assetPath": "stages/serviceEnterance/pillar",
+			"startingAnimation": "doug",
+			"scroll": [0.9, 0.9],
+			"animations": [
+				{
+					"name": "doug",
+					"prefix": "pillar"
+				}
+			]
+		},
+
+		{
+			"danceEvery": 0,
+			"zIndex": 15,
+			"position": [-1595, -1580],
+			"scale": [1, 1],
+			"alpha": 1,
+			"name": "stageBG",
+			"assetPath": "stages/serviceEnterance/bg",
+			"scroll": [0.95, 0.95],
+			"animations": []
+		},
+
+		{
+			"danceEvery": 0,
+			"zIndex": 900,
+			"position": [-500, -200],
+			"scale": [1, 1],
+			"alpha": 0,
+			"animType": "sparrow",
+			"name": "holygrad",
+			"blend": "overlay",
+			"assetPath": "stages/serviceEnterance/holygrad",
+			"scroll": [0, 0],
+			"animations": []
+		},
+
+		{
+			"danceEvery": 0,
+			"zIndex": 20,
+			"position": [1370, -205],
+			"scale": [1, 1],
+			"blend": "add",
+			"name": "vendingLight",
+			"assetPath": "stages/serviceEnterance/vending_machine_lights",
+			"scroll": [0.95, 0.95],
+			"animations": []
+		},
+
+		{
+			"danceEvery": 1,
+			"zIndex": 30,
+			"animType": "animateatlas",
+			"position": [400, 520],
+			"name": "fgBoxes",
+			"assetPath": "stages/serviceEnterance/fg boxes",
+			"startingAnimation": "y",
+			"scroll": [1.1, 1.1],
+			"animations": [
+				{
+					"name": "y",
+					"looped": true,
+					"prefix": "ass"
+				}
+			]
+		},
+
+		{
+			"danceEvery": 1,
+			"zIndex": 22,
+			"animType": "animateatlas",
+			"position": [-1650, 270],
+			"name": "rain",
+			"assetPath": "stages/serviceEnterance/rain spritemap",
+			"startingAnimation": "y",
+			"scroll": [1.1, 1.1],
+			"animations": [
+				{
+					"name": "y",
+					"looped": true,
+					"animType": "symbol",
+					"prefix": "rain spritemap"
+				}
+			]
+		},
+
+
+		{
+			"danceEvery": 0,
+			"zIndex": 35,
+			"position": [-1450, 500],
+			"scale": [1, 1],
+			"alpha": 1,
+			"animType": "sparrow",
+			"name": "fgMist",
+			"assetPath": "stages/serviceEnterance/fg_mist",
+			"scroll": [1.2, 1.2],
+			"animations": []
+		},
+
+		{
+			"danceEvery": 0,
+			"zIndex": 37,
+			"position": [-1500, 500],
+			"scale": [1, 1.25],
+			"blend": "multiply",
+			"animType": "sparrow",
+			"name": "fgOverlay",
+			"assetPath": "stages/serviceEnterance/bottom_overlay",
+			"scroll": [1.0, 1.0],
+			"animations": []
+		},
+
+		{
+			"danceEvery": 0,
+			"zIndex": 100,
+			"position": [-2400, -250],
+			"scale": [1, 1],
+			"animType": "sparrow",
+			"name": "fgRedOverlay",
+			"assetPath": "stages/serviceEnterance/red_stuff",
+			"scroll": [1.1, 1.1],
+			"animations": []
+		},
+
+		{
+      "danceEvery": 0,
+      "zIndex": 9,
+      "position": [0, 250],
+      "scale": [1, 1],
+      "animType": "sparrow",
+      "name": "phillyCars",
+      "assetPath": "stages/serviceEnterance/bg_cars_assets",
+      "scroll": [0.9, 1],
+      "alpha": 1,
+      "animations": [
+        {
+          "name": "car1",
+          "offsets": [0, 0],
+          "prefix": "car1",
+          "frameRate": 24,
+          "flipX": false,
+          "flipY": false
+        },
+        {
+          "name": "car2",
+          "prefix": "car2",
+          "frameRate": 24,
+          "flipX": false,
+          "flipY": false,
+          "offsets": [0, 0]
+        },
+        {
+          "name": "car3",
+          "offsets": [0, 0],
+          "prefix": "car3",
+          "frameRate": 24,
+          "flipX": false,
+          "flipY": false
+        },
+        {
+          "name": "car4",
+          "offsets": [0, 0],
+          "prefix": "car4",
+          "frameRate": 24,
+          "flipX": false,
+          "flipY": false
+        }
+      ]
+    },
+    {
+      "danceEvery": 0,
+      "zIndex": 8,
+      "position": [0, 250],
+      "scale": [1, 1],
+      "animType": "sparrow",
+      "name": "phillyCars2",
+      "assetPath": "stages/serviceEnterance/bg_cars_assets",
+      "scroll": [0.9, 1],
+      "alpha": 0.5,
+      "animations": [
+        {
+          "name": "car1",
+          "offsets": [0, 0],
+          "prefix": "car1",
+          "frameRate": 24,
+          "flipX": true,
+          "flipY": false
+        },
+        {
+          "name": "car2",
+          "prefix": "car2",
+          "frameRate": 24,
+          "flipX": true,
+          "flipY": false,
+          "offsets": [0, 0]
+        },
+        {
+          "name": "car3",
+          "offsets": [0, 0],
+          "prefix": "car3",
+          "frameRate": 24,
+          "flipX": true,
+          "flipY": false
+        },
+        {
+          "name": "car4",
+          "offsets": [0, 0],
+          "prefix": "car4",
+          "frameRate": 24,
+          "flipX": true,
+          "flipY": false
+        }
+      ]
+    }
+],
+	"cameraZoom": 0.46,
+	"version": "1.0.0",
+	"characters": {
+		"bf": {
+			"zIndex": 22,
+			"position": [1110, 900],
+			"cameraOffsets": [-200, -275]
+		},
+		"dad": {
+			"zIndex": 23,
+			"position": [130, 885],
+			"cameraOffsets": [1050, 1500]
+		},
+		"gf": {
+			"zIndex": -1,
+			"position": [855, 490],
+			"cameraOffsets": [0, -50]
+		}
+	},
+	"name": "Service Enterance (AmTake)",
+	"directory": "shared"
+}

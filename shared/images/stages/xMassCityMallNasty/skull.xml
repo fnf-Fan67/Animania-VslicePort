@@ -1,0 +1,57 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="skull.png">
+	<!-- Created with Adobe Animate version 20.5.1.31044 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="skull-troll_gif0000" x="2" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0001" x="2" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0002" x="2" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0003" x="2" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0004" x="2" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0005" x="2" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0006" x="2" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0007" x="2" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0008" x="2" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0009" x="2" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0010" x="164" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0011" x="164" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0012" x="326" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0013" x="326" y="2" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0014" x="2" y="164" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0015" x="2" y="164" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0016" x="164" y="164" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0017" x="164" y="164" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0018" x="326" y="164" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0019" x="326" y="164" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0020" x="2" y="326" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0021" x="2" y="326" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0022" x="164" y="326" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0023" x="164" y="326" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0024" x="326" y="326" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0025" x="326" y="326" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0026" x="2" y="488" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0027" x="2" y="488" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0028" x="2" y="650" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0029" x="2" y="650" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0030" x="2" y="812" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0031" x="2" y="812" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0032" x="164" y="488" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0033" x="164" y="488" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0034" x="326" y="488" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0035" x="326" y="488" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0036" x="164" y="650" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0037" x="164" y="650" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0038" x="164" y="812" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0039" x="164" y="812" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0040" x="326" y="650" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0041" x="326" y="650" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0042" x="326" y="650" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0043" x="326" y="650" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0044" x="326" y="812" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0045" x="326" y="812" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0046" x="326" y="812" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0047" x="326" y="812" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0048" x="326" y="812" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0049" x="326" y="812" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0050" x="326" y="812" width="160" height="160"/>
+	<SubTexture name="skull-troll_gif0051" x="326" y="812" width="160" height="160"/>
+</TextureAtlas>

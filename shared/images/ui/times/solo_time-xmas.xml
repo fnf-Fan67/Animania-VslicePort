@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="SOLOTIME X-MAS.png">
+	<!-- Created with Adobe Animate version 24.0.0.305 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="solo_time_eng0000" x="3264" y="1071" width="225" height="205" frameX="-184" frameY="-197" frameWidth="1006" frameHeight="649" rotated="false"/>
+	<SubTexture name="solo_time_eng0001" x="2970" y="1071" width="293" height="350" frameX="-132" frameY="-115" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0002" x="3196" y="617" width="295" height="453" frameX="-134" frameY="-114" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0003" x="2597" y="617" width="598" height="349" frameX="-134" frameY="-60" frameWidth="1006" frameHeight="649" rotated="false"/>
+	<SubTexture name="solo_time_eng0004" x="2360" y="990" width="609" height="485" frameX="-134" frameY="-56" frameWidth="1006" frameHeight="649" rotated="false"/>
+	<SubTexture name="solo_time_eng0005" x="1753" y="992" width="606" height="499" frameX="-134" frameY="-56" frameWidth="1006" frameHeight="649" rotated="false"/>
+	<SubTexture name="solo_time_eng0006" x="880" y="1000" width="872" height="555" frameX="-134" frameY="0" frameWidth="1006" frameHeight="649" rotated="false"/>
+	<SubTexture name="solo_time_eng0007" x="1" y="1000" width="878" height="566" frameX="-112" frameY="-1" frameWidth="1006" frameHeight="649" rotated="false"/>
+	<SubTexture name="solo_time_eng0008" x="2597" y="1" width="913" height="615" frameX="-77" frameY="-1" frameWidth="1006" frameHeight="649" rotated="false"/>
+	<SubTexture name="solo_time_eng0009" x="1299" y="1" width="648" height="990" frameX="0" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0010" x="1948" y="1" width="648" height="988" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0011" x="1" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0012" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0013" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0014" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0015" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0016" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0017" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0018" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0019" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0020" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0021" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0022" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0023" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0024" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0025" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0026" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0027" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0028" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0029" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0030" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0031" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0032" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0033" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0034" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0035" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0036" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0037" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0038" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0039" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0040" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0041" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0042" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0043" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0044" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0045" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0046" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0047" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0048" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+	<SubTexture name="solo_time_eng0049" x="650" y="1" width="648" height="998" frameX="-2" frameY="-1" frameWidth="1006" frameHeight="649" rotated="true"/>
+</TextureAtlas>

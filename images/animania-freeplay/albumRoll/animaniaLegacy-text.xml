@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="animaniaLegacy-text.png">
+	<SubTexture name="switch0000" x="1" y="1" width="297" height="123" frameX="0" frameY="-1" frameWidth="297" frameHeight="124" rotated="false"/>
+	<SubTexture name="switch0001" x="1" y="1" width="297" height="123" frameX="0" frameY="-1" frameWidth="297" frameHeight="124" rotated="false"/>
+	<SubTexture name="switch0002" x="1" y="1" width="297" height="123" frameX="0" frameY="-1" frameWidth="297" frameHeight="124" rotated="false"/>
+	<SubTexture name="switch0003" x="1" y="1" width="297" height="123" frameX="0" frameY="-1" frameWidth="297" frameHeight="124" rotated="false"/>
+	<SubTexture name="idle0000" x="299" y="1" width="294" height="123" frameX="-1" frameY="0" frameWidth="297" frameHeight="124" rotated="false"/>
+	<SubTexture name="idle0001" x="299" y="1" width="294" height="123" frameX="-1" frameY="0" frameWidth="297" frameHeight="124" rotated="false"/>
+	<SubTexture name="idle0002" x="299" y="1" width="294" height="123" frameX="-1" frameY="0" frameWidth="297" frameHeight="124" rotated="false"/>
+	<SubTexture name="idle0003" x="299" y="1" width="294" height="123" frameX="-1" frameY="0" frameWidth="297" frameHeight="124" rotated="false"/>
+	<SubTexture name="idle0004" x="299" y="1" width="294" height="123" frameX="-1" frameY="0" frameWidth="297" frameHeight="124" rotated="false"/>
+	<SubTexture name="idle0005" x="299" y="1" width="294" height="123" frameX="-1" frameY="0" frameWidth="297" frameHeight="124" rotated="false"/>
+	<SubTexture name="idle0006" x="299" y="1" width="294" height="123" frameX="-1" frameY="0" frameWidth="297" frameHeight="124" rotated="false"/>
+	<SubTexture name="idle0007" x="299" y="1" width="294" height="123" frameX="-1" frameY="0" frameWidth="297" frameHeight="124" rotated="false"/>
+</TextureAtlas>

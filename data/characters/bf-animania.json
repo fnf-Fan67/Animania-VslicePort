@@ -1,0 +1,901 @@
+{
+	"renderType": "multianimateatlas",
+	"offsets": [
+		-10,
+		25
+	],
+	"applyStageMatrix": false,
+	"startingAnimation": "idle",
+	"healthIcon": {
+		"id": "bf-amtake",
+		"flipX": true,
+		"scale": 0.9
+	},
+	"assetPath": "shared:characters/amtake/bf/bf-classic",
+	"version": "1.0.0",
+	"danceEvery": 1,
+	"scale": 1,
+	"name": "Boyfriend (Animania)",
+	"cameraOffsets": [
+		0,
+		210
+	],
+	"flipX": true,
+	"isPixel": false,
+	"singTime": 4,
+	"atlasSettings": {
+		"applyStageMatrix": false,
+		"useRenderTexture": false,
+		"filterQuality": 1,
+		"swfMode": true
+	},
+	"animations": [
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "idle",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "idle",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "left",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFT",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "down",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWN",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "up",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUP",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "right",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHT",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "hey",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "hey",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "hey",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "cheer",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss left",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFTmiss",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss down",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWNmiss",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss up",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUPmiss",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss right",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHTmiss",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "alt left",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFT-alt",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "alt down",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWN-alt",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "alt up",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUP-alt",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "alt right",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHT-alt",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss alt left",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFTmiss-alt",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss alt down",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWNmiss-alt",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss alt up",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUPmiss-alt",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss alt right",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHTmiss-alt",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "fresh left",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFT-fresh",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "fresh down",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWN-fresh",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "fresh up",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUP-fresh",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "fresh right",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHT-fresh",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss fresh left",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFTmiss-fresh",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss fresh down",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWNmiss-fresh",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss fresh up",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUPmiss-fresh",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "miss fresh right",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHTmiss-fresh",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "beatbox left",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFT-beatbox",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "beatbox down",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWN-beatbox",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "beatbox up",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUP-beatbox",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "beatbox right",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHT-beatbox",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "blush left",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFT-blush",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "blush down",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWN-blush",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "blush up",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUP-blush",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "blush right",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHT-blush",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "alt hey",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "cheer-alt",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "erect up",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "erect up",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "scared",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "scared",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "bopeebo animation",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "bope",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "angry idle",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "idle-angry",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "angry left",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFT-angry",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "angry down",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWN-angry",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "angry up",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUP-angry",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "angry right",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHT-angry",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "angry alt left",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFT-alt-angry",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "angry alt down",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWN-alt-angry",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "angry alt up",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUP-alt-angry",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "angry alt right",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"renderType": "",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHT-alt-angry",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "death start",
+			"assetPath": "characters/amtake/bf/bf-classic-dead",
+			"offsets": [
+				-677,
+				-411
+			],
+			"renderType": "sparrow",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "firstDeath",
+			"looped": false
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "death loop",
+			"assetPath": "characters/amtake/bf/bf-classic-dead",
+			"offsets": [
+				-700,
+				-420
+			],
+			"renderType": "sparrow",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "deathLoop",
+			"looped": true
+		},
+		{
+			"animType": "framelabel",
+			"frameIndices": [],
+			"atlasSettings": null,
+			"prefix": "death enter",
+			"assetPath": "characters/amtake/bf/bf-classic-dead",
+			"offsets": [
+				-701,
+				-336
+			],
+			"renderType": "sparrow",
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "deathConfirm",
+			"looped": false
+		}
+	]
+}

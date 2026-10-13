@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TextureAtlas imagePath="solotime_NOTES.png" width="626" height="227">
+	<SubTexture name="solotime down note0000" x="1" y="1" width="148" height="217" frameX="-0" frameY="-1" frameWidth="148" frameHeight="224"/>
+	<SubTexture name="solotime left note0000" x="309" y="1" width="157" height="225" frameX="-1" frameY="-2" frameWidth="161" frameHeight="233"/>
+	<SubTexture name="solotime right note0000" x="469" y="1" width="156" height="225" frameX="-0" frameY="-2" frameWidth="161" frameHeight="233"/>
+	<SubTexture name="solotime up note0000" x="152" y="1" width="154" height="224" frameX="-4" frameY="-3" frameWidth="165" frameHeight="234"/>
+</TextureAtlas>

@@ -1,0 +1,146 @@
+{
+	"renderType": "multisparrow",
+	"offsets": [
+		0,
+		0
+	],
+	"loopHold": true,
+	"startingAnimation": "idle",
+	"death": null,
+	"healthIcon": {
+		"offsets": [
+			10,
+			0
+		],
+		"id": "komi",
+		"flipX": false,
+		"isPixel": false,
+		"scale": 0.9
+	},
+	"assetPath": "characters/phonecall/komi-stand",
+	"version": "1.0.0",
+	"danceEvery": 1,
+	"scale": 1,
+	"cameraOffsets": [
+		50,
+		50
+	],
+	"flipX": false,
+	"name": "Komi (Phone Call)",
+	"singTime": 8,
+	"isPixel": false,
+	"animations": [
+		{
+			"frameIndices": [],
+			"prefix": "idle",
+			"assetPath": null,
+			"offsets": [
+				0,
+				0
+			],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "idle",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "left",
+			"assetPath": null,
+			"offsets": [
+				4,
+				-2
+			],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singLEFT",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "down",
+			"assetPath": null,
+			"offsets": [
+				3,
+				-11
+			],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singDOWN",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "up",
+			"assetPath": null,
+			"offsets": [
+				-5,
+				14
+			],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singUP",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "right",
+			"assetPath": null,
+			"offsets": [
+				-2,
+				-4
+			],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "singRIGHT",
+			"looped": false
+		},
+		{
+			"frameIndices": [],
+			"prefix": "komigameover",
+			"assetPath": null,
+			"offsets": [
+				-1,
+				0
+			],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "gameOver",
+			"looped": false
+		},
+		{
+			"frameIndices": [6,7,8,9, 10],
+			"prefix": "komigameover",
+			"assetPath": null,
+			"offsets": [
+				-1,
+				0
+			],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "gameOver-loop",
+			"looped": true
+		},
+		{
+			"frameIndices": [],
+			"prefix": "endkun",
+			"assetPath": null,
+			"offsets": [
+				-1,
+				2
+			],
+			"flipX": false,
+			"flipY": false,
+			"frameRate": 24,
+			"name": "endConv",
+			"looped": false
+		}
+	]
+}

@@ -1,0 +1,211 @@
+{
+	"renderType": "animateatlas",
+	"offsets": [-125, 75],
+	"loopHold": false,
+	"startingAnimation": "idle",
+	"death": null,
+	"healthIcon": {
+		"id": "dad-amtake",
+		"flipX": false,
+		"isPixel": false,
+		"offsets": [20, 0],
+		"scale": 0.7
+	},
+	"assetPath": "shared:characters/amtake/dad/daddyDearest1",
+	"version": "1.0.0",
+	"danceEvery": 2,
+	"scale": 1,
+	"cameraOffsets": [0, 0],
+	"flipX": false,
+	"name": "Daddy Dearest (Animania)",
+	"singTime": 8,
+	"isPixel": false,
+	"pixelIcon": {
+		"id": "daddy",
+		"flipX": false,
+		"originOffsets": [0, 0]
+	},
+	"animations": [
+		{
+			"prefix": "idle",
+			"name": "idle"
+		},
+		{
+			"prefix": "idle loop",
+			"name": "idle-hold",
+			"looped": true
+		},
+
+		{
+			"prefix": "angry idle",
+			"name": "idle-angry"
+		},
+		{
+			"prefix": "angry idle loop",
+			"name": "idle-angry-hold",
+			"looped": true
+		},
+
+		{
+			"prefix": "left",
+			"name": "singLEFT"
+		},
+		{
+			"prefix": "left loop",
+			"name": "singLEFT-hold",
+			"looped": true
+		},
+		{
+			"prefix": "down",
+			"name": "singDOWN"
+		},
+		{
+			"prefix": "down loop",
+			"name": "singDOWN-hold",
+			"looped": true
+		},
+		{
+			"prefix": "up",
+			"name": "singUP"
+		},
+		{
+			"prefix": "up loop",
+			"name": "singUP-hold",
+			"looped": true
+		},
+		{
+			"prefix": "right",
+			"name": "singRIGHT"
+		},
+		{
+			"prefix": "right loop",
+			"name": "singRIGHT-hold",
+			"looped": true
+		},
+
+		{
+			"prefix": "angry left",
+			"name": "singLEFT-angry"
+		},
+		{
+			"prefix": "angry left loop",
+			"name": "singLEFT-angry-hold",
+			"looped": true
+		},
+		{
+			"prefix": "angry down",
+			"name": "singDOWN-angry"
+		},
+		{
+			"prefix": "angry down loop",
+			"name": "singDOWN-angry-hold",
+			"looped": true
+		},
+		{
+			"prefix": "angry up",
+			"name": "singUP-angry"
+		},
+		{
+			"prefix": "angry up loop",
+			"name": "singUP-angry-hold",
+			"looped": true
+		},
+		{
+			"prefix": "angry right",
+			"name": "singRIGHT-angry"
+		},
+		{
+			"prefix": "angry right loop",
+			"name": "singRIGHT-angry-hold",
+			"looped": true
+		},
+
+		{
+			"prefix": "beatbox left",
+			"name": "singLEFT-beatbox"
+		},
+		{
+			"prefix": "beatbox left loop",
+			"name": "singLEFT-beatbox-hold",
+			"looped": true
+		},
+		{
+			"prefix": "beatbox down",
+			"name": "singDOWN-beatbox"
+		},
+		{
+			"prefix": "beatbox down loop",
+			"name": "singDOWN-beatbox-hold",
+			"looped": true
+		},
+		{
+			"prefix": "beatbox up",
+			"name": "singUP-beatbox"
+		},
+		{
+			"prefix": "beatbox up loop",
+			"name": "singUP-beatbox-hold",
+			"looped": true
+		},
+		{
+			"prefix": "beatbox right",
+			"name": "singRIGHT-beatbox"
+		},
+		{
+			"prefix": "beatbox right loop",
+			"name": "singRIGHT-beatbox-hold",
+			"looped": true
+		},
+
+		{
+			"prefix": "alt left",
+			"name": "singLEFT-alt"
+		},
+		{
+			"prefix": "alt down",
+			"name": "singDOWN-alt"
+		},
+		{
+			"prefix": "alt down loop",
+			"name": "singDOWN-alt-hold",
+			"looped": true
+		},
+		{
+			"prefix": "alt up",
+			"name": "singUP-alt"
+		},
+		{
+			"prefix": "alt right",
+			"name": "singRIGHT-alt"
+		},
+		{
+			"prefix": "alt right loop",
+			"name": "singRIGHT-alt-hold",
+			"looped": true
+		},
+
+		{
+			"prefix": "light off",
+			"name": "lights off"
+		},
+
+		{
+			"prefix": "huh",
+			"name": "fresh huh"
+		},
+
+		{
+			"prefix": "fresh stum",
+			"name": "fresh fuck"
+		},
+
+		{
+			"prefix": "fresh stum2",
+			"name": "fresh fuck2"
+		},
+		{
+			"prefix": "bopeebo shock",
+			"name": "shock"
+		}
+	]
+}

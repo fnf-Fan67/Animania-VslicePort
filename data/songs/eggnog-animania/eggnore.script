@@ -1,0 +1,81 @@
+import funkin.play.PlayState;
+import funkin.play.Countdown;
+import funkin.play.CountdownStep;
+import funkin.play.PlayStatePlaylist;
+
+
+function onCreate()
+{
+	createCountDownSound = step -> {
+		var soundPath:String = null;
+
+		switch (step)
+		{
+			case CountdownStep.THREE:
+				soundPath = 'intro3';
+			case CountdownStep.TWO:
+				soundPath = 'intro2';
+			case CountdownStep.ONE:
+				soundPath = 'intro1';
+			case CountdownStep.GO:
+				soundPath = 'introGo';
+			default:
+				// null
+		}
+
+		if (soundPath == null) return;
+
+		FunkinSound.playOnce(Paths.sound("week5/" + soundPath + "-eggnog", "shared"), 1);
+	}
+}
+
+function onCreatePost()
+{
+	if (!PlayStatePlaylist.isStoryMode)
+		return;
+
+	var screeeen = new FunkinSprite();
+	screeeen.makeGraphic(1, 1, FlxColor.BLACK);
+	screeeen.scale.set(2000, 2000);
+	screeeen.screenCenter();
+	screeeen.camera = camHUD;
+	screeeen.zIndex = 999999;
+	screeeen.alpha = 1;
+	add(screeeen);
+	
+	FlxTween.tween(screeeen, {alpha: 0}, 1, {ease: FlxEase.sineIn});
+
+	refresh();
+}
+
+
+function onBeatHit(beat)
+{
+    if (isPlayerDying)
+		return;
+
+    //currentStage.getDad().angle += 25;
+    switch (beat)
+    {
+	   case 221:
+			FlxTween.tween(currentStage.getNamedProp("snowman"), {alpha: .4}, .25, {ease:FlxEase.backOut});
+        case 222:
+			currentStage.getNamedProp("cops").playAnimation("throw", true, true);
+
+        case 224:
+			if (health > .3)
+				health -= .2;
+
+        case 226:
+			currentStage.getDad().playAnimation("eggL", true, true);
+			FlxTween.tween(currentStage.getNamedProp("snowman"), {alpha: 1}, .25, {ease:FlxEase.backOut});
+
+        case 232:
+			currentStage.getDad().idleSuffix = "-angry";
+            currentStage.getDad().shouldAlternate = false;
+
+        case 284:
+			currentStage.getDad().idleSuffix = "-angry";
+            currentStage.getDad().shouldAlternate = false;
+    }
+}

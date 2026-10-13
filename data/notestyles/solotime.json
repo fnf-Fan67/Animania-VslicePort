@@ -1,0 +1,113 @@
+{
+  "version": "1.1.0",
+  "name": "Animania!': Solotime",
+  "author": "KerSive (and PurSnake's fixes)",
+  "fallback": null,
+  "assets": {
+    "note": {
+      "assetPath": "shared:ui/notes/solotimenotes/solotime_NOTES",
+      "scale": 0.7,
+      "offsets": [-4, 5],
+      "data": {
+        "left": { "prefix": "solotime left note" },
+        "down": { "prefix": "solotime down note" },
+        "up": { "prefix": "solotime up note" },
+        "right": { "prefix": "solotime right note" }
+      }
+    },
+    "noteStrumline": {
+      "assetPath": "shared:ui/notes/amtake_base/strums",
+      "scale": 0.7,
+      "offsets": [25, 0],
+      "data": {
+        "leftStatic": { "prefix": "LeftStatic" },
+        "leftPress": { "prefix": "left press" },
+        "leftConfirm": { "prefix": "left confirm" },
+        "leftConfirmHold": {
+          "prefix": "left confirm",
+          "frameIndices": [0, 1, 2, 3, 4, 5, 6, 7],
+          "looped": true
+        },
+        "downStatic": { "prefix": "DownStatic" },
+        "downPress": { "prefix": "down press" },
+        "downConfirm": { "prefix": "down confirm" },
+        "downConfirmHold": {
+          "prefix": "down confirm",
+          "frameIndices": [0, 1, 2, 3, 4, 5, 6, 7],
+          "looped": true
+        },
+        "upStatic": { "prefix": "UpStatic" },
+        "upPress": { "prefix": "up press" },
+        "upConfirm": { "prefix": "up confirm" },
+        "upConfirmHold": {
+          "prefix": "up confirm",
+          "frameIndices": [0, 1, 2, 3, 4, 5, 6, 7],
+          "looped": true
+        },
+        "rightStatic": { "prefix": "RightStatic" },
+        "rightPress": { "prefix": "right press" },
+        "rightConfirm": { "prefix": "right confirm" },
+        "rightConfirmHold": {
+          "prefix": "right confirm",
+          "frameIndices": [0, 1, 2, 3, 4, 5, 6, 7],
+          "looped": true
+        }
+      }
+    },
+    "holdNote": {
+      "assetPath": "shared:ui/notes/amtake_base/note-holds",
+      "scale": 0.9,
+      "offsets": [-2, -25],
+      "data": {}
+    },
+    "noteSplash": {
+      "assetPath": "shared:ui/notes/solotimenotes/solotime_SPLASHES",
+      "data": {
+        "enabled": true,
+        "leftSplashes": [
+          { "prefix": "note red splash 1" },
+          { "prefix": "note red splash 2" }
+        ],
+        "rightSplashes": [
+          { "prefix": "note red splash 1" },
+          { "prefix": "note red splash 2"}
+        ],
+        "upSplashes": [
+          { "prefix": "note yellow splash 1" },
+          { "prefix": "note yellow splash 2"}
+        ],
+        "downSplashes": [
+          { "prefix": "note yellow splash 1" },
+          { "prefix": "note yellow splash 2" }
+        ]
+      }
+    },
+    "holdNoteCover": {
+      "assetPath": "shared:ui/notes/amtake_base/strum-holds",
+      "offsets": [-20, 90],
+      "data": {
+        "enabled": true,
+        "left": {
+          "start": { "prefix": "hold splash purple 1" },
+          "hold": { "prefix": "hold splash purple 1", "looped":true },
+          "end": { "prefix": "note splash purple end 1" }
+        },
+        "right": {
+          "start": { "prefix": "hold splash red 1" },
+          "hold": { "prefix": "hold splash red 1", "looped": true },
+          "end": { "prefix": "note splash red end 1" }
+        },
+        "up": {
+          "start": { "prefix": "hold splash green 1" },
+          "hold": { "prefix": "hold splash green 1", "looped": true },
+          "end": { "prefix": "note splash green end 1" }
+        },
+        "down": {
+          "start": { "prefix": "hold splash blue 1" },
+          "hold": { "prefix": "hold splash blue 1", "looped": true },
+          "end": { "prefix": "note splash blue end 1" }
+        }
+      }
+    }
+  }
+}

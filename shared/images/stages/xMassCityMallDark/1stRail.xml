@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="1stRail.png">
+	<!-- Created with Adobe Animate version 24.0.0.305 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="1st rail0000" x="2" y="2" width="1451" height="529"/>
+	<SubTexture name="1st rail0001" x="1455" y="2" width="1451" height="529"/>
+	<SubTexture name="1st rail0002" x="2" y="533" width="1451" height="529"/>
+	<SubTexture name="1st rail0003" x="1455" y="533" width="1451" height="529"/>
+	<SubTexture name="1st rail0004" x="2" y="1064" width="1451" height="529"/>
+	<SubTexture name="1st rail0005" x="2" y="1595" width="1451" height="529"/>
+	<SubTexture name="1st rail0006" x="1455" y="1064" width="1451" height="529"/>
+	<SubTexture name="1st rail0007" x="1455" y="1595" width="1451" height="529"/>
+</TextureAtlas>

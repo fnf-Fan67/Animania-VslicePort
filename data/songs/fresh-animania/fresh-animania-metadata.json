@@ -1,0 +1,44 @@
+{
+ "version": "2.2.4",
+ "songName": "Fresh (AmTake)",
+ "artist": "Leebert + d4rkwinged",
+ "charter": "PurSnake + d4rkwinged",
+ "offsets": { },
+ "playData": {
+  "difficulties": [
+   "easy",
+   "normal",
+   "hard"
+  ],
+  "characters": {
+   "player": "bf-animania",
+   "girlfriend": "gf-animania",
+   "opponent": "dad-animania",
+   "opponentVocals": [
+    "dad"
+   ],
+   "playerVocals": [
+    "bf"
+   ]
+  },
+  "stage": "mainStageAmTake",
+  "noteStyle": "amtake-base",
+  "ratings": {
+   "easy": 5,
+   "normal": 7,
+   "hard": 8
+  },
+  "album": "expansionMini",
+  "stickerPack": "week1",
+  "previewEnd": 0.157377049180328
+ },
+ "generatedBy": "Friday Night Funkin' - v0.8.6",
+ "timeChanges": [
+  {
+   "t": 0,
+   "b": 0,
+   "bpm": 120,
+   "bt": [4, 4, 4, 4]
+  }
+ ]
+}

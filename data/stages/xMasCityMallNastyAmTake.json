@@ -1,0 +1,387 @@
+{
+	"version": "1.0.0",
+	"cameraZoom": 0.4,
+	"props": [
+		{
+			"name": "bg",
+			"assetPath": "stages/xMassCityMallNasty/backwall",
+			"position": [-2500, -2000],
+			"scale": 1,
+			"scroll": [0.75, 0.75],
+			"danceEvery": 1,
+			"zIndex": 0
+		},
+
+
+		{
+			"name": "ceiling",
+			"danceEvery": 0,
+			"animType": "animateatlas",
+			"atlasSettings": {
+				"applyStageMatrix": true
+			},
+			"assetPath": "stages/xMassCityMallNasty/ceiling",
+			"zIndex": 5,
+			"position": [-1815, -2080],
+			"scale": [1, 1],
+			"startingAnimation": "idle",
+			"scroll": [0.75, 0.75],
+			"animations": [
+				{
+					"name": "idle",
+					"looped": true,
+					"animType": "symbol",
+					"prefix": "ceiling"
+				}
+			]
+		},
+		{
+			"name": "far-rail",
+			"assetPath": "stages/xMassCityMallNasty/rails",
+			"position": [-2600, -1895],
+			"scale": 1,
+			"scroll": [0.775, 0.775],
+			"danceEvery": 1,
+			"zIndex": 40,
+			"startingAnimation": "idle",
+			"animations": [
+				{
+					"name": "idle",
+					"prefix": "2nd rail0",
+					"frameRate": 24,
+					"looped": true
+				}
+			]
+		},
+
+		{
+			"name": "far-rail",
+			"assetPath": "stages/xMassCityMallNasty/rails",
+			"position": [-825, -355],
+			"scale": 1,
+			"scroll": [0.785, 0.785],
+			"danceEvery": 0,
+			"zIndex": 51,
+			"startingAnimation": "idle",
+			"animations": [
+				{
+					"name": "idle",
+					"prefix": "1st rail",
+					"frameRate": 24,
+					"looped": true
+				}
+			]
+		},
+
+		{
+			"name": "rightRail",
+			"assetPath": "stages/xMassCityMallNasty/rails",
+			"position": [-40, -1305],
+			"scale": 1,
+			"scroll": [0.8, 0.8],
+			"danceEvery": 1,
+			"zIndex": 60,
+			"startingAnimation": "idle",
+			"animations": [
+				{
+					"name": "idle",
+					"prefix": "rail0",
+					"frameRate": 24,
+					"looped": true
+				}
+			]
+		},
+		{
+			"name": "leftRail",
+			"assetPath": "stages/xMassCityMallNasty/rails",
+			"position": [-2735, -1305],
+			"scale": [1, 1],
+			"scroll": [0.8, 0.8],
+			"danceEvery": 1,
+			"zIndex": 61,
+			"startingAnimation": "idle",
+			"animations": [
+				{
+					"name": "idle",
+					"prefix": "rail0",
+					"frameRate": 24,
+					"flipX": true,
+					"looped": true
+				}
+			]
+		},
+		{
+			"name": "blend1",
+			"assetPath": "stages/xMassCityMallNasty/fog1",
+			"position": [-2150, -1575],
+			"scale": [1, 1],
+			"scroll": [0.825, 0.825],
+			"alpha": 0.57,
+			"blend": "overlay",
+			"danceEvery": 1,
+			"zIndex": 80
+		},
+		{
+			"name": "blend2",
+			"assetPath": "stages/xMassCityMallNasty/fog1",
+			"position": [-2150, -1575],
+			"scale": [1, 1],
+			"scroll": [0.825, 0.825],
+			"alpha": 0.6,
+			"blend": "normal",
+			"danceEvery": 1,
+			"zIndex": 81
+		},
+
+		{
+			"name": "hangRUNMO",
+			"assetPath": "stages/xMassCityMallNasty/dead_guys",
+			"position": [-1450, -1425],
+			"scale": [1, 1],
+			"scroll": [0.845, 0.845],
+			"danceEvery": 1,
+			"zIndex": 100,
+			"startingAnimation": "idle",
+			"animations": [
+				{
+					"name": "idle",
+					"prefix": "dummy",
+					"frameRate": 24,
+					"flipX": false,
+					"looped": true
+				}
+			]
+		},
+		{
+			"name": "hangCRUSHERS",
+			"assetPath": "stages/xMassCityMallNasty/dead_guys",
+			"position": [-970, -1445],
+			"scale": [1, 1],
+			"scroll": [0.845, 0.845],
+			"danceEvery": 1,
+			"zIndex": 101,
+			"startingAnimation": "idle",
+			"animations": [
+				{
+					"name": "idle",
+					"prefix": "castle",
+					"frameRate": 24,
+					"flipX": false,
+					"looped": true
+				}
+			]
+		},
+		{
+			"name": "hangZONA",
+			"assetPath": "stages/xMassCityMallNasty/dead_guys",
+			"position": [125, -1415],
+			"scale": [1, 1],
+			"scroll": [0.845, 0.845],
+			"danceEvery": 1,
+			"zIndex": 102,
+			"startingAnimation": "idle",
+			"animations": [
+				{
+					"name": "idle",
+					"prefix": "zona",
+					"frameRate": 24,
+					"flipX": false,
+					"looped": true
+				}
+			]
+		},
+		{
+			"name": "hangMUFFIN",
+			"assetPath": "stages/xMassCityMallNasty/dead_guys",
+			"position": [575, -1415],
+			"scale": [1, 1],
+			"scroll": [0.845, 0.845],
+			"danceEvery": 1,
+			"zIndex": 103,
+			"startingAnimation": "idle",
+			"animations": [
+				{
+					"name": "idle",
+					"prefix": "muffin",
+					"frameRate": 24,
+					"flipX": false,
+					"looped": true
+				}
+			]
+		},
+		{
+			"name": "hangDUDE",
+			"assetPath": "stages/xMassCityMallNasty/dead_guys",
+			"position": [925, -1425],
+			"scale": [1, 1],
+			"scroll": [0.845, 0.845],
+			"danceEvery": 1,
+			"zIndex": 104,
+			"startingAnimation": "idle",
+			"animations": [
+				{
+					"name": "idle",
+					"prefix": "dude",
+					"frameRate": 24,
+					"flipX": false,
+					"looped": true
+				}
+			]
+		},
+		{
+			"name": "candy",
+			"assetPath": "stages/xMassCityMallNasty/candy",
+			"position": [-15, -610],
+			"scale": 1,
+			"scroll": [0.875, 0.875],
+			"danceEvery": 1,
+			"zIndex": 110
+		},
+		{
+			"name": "tree",
+			"assetPath": "stages/xMassCityMallNasty/tree",
+			"position": [-800, -1500],
+			"scale": 1,
+			"scroll": [0.9, 0.9],
+			"danceEvery": 1,
+			"zIndex": 115
+		},
+		{
+			"name": "snowfgrad",
+			"assetPath": "stages/xMassCityMall/fg-snow-grad",
+			"position": [-2750, -580],
+			"scale": 1,
+			"color": "#C03286",
+			"alpha": 1,
+			"scroll": [0.95, 0.95],
+			"danceEvery": 1,
+			"zIndex": 120
+		},
+		{
+			"name": "snowfg",
+			"assetPath": "stages/xMassCityMallNasty/snowground",
+			"position": [-2750, -250],
+			"scale": 1,
+			"scroll": [1, 1],
+			"danceEvery": 1,
+			"alpha": 1,
+			"zIndex": 125
+		},
+		{
+			"name": "snowman",
+			"assetPath": "stages/xMassCityMallNasty/snowman",
+			"position": [350, -450],
+			"scale": 1,
+			"scroll": [1.2, 1.2],
+			"danceEvery": 1,
+			"alpha": 1,
+			"zIndex": 400
+		},
+		{
+			"name": "gust",
+			"assetPath": "stages/xMassCityMallNasty/ceiling guts",
+			"position": [-2850, -1950],
+			"scale": 1,
+			"scroll": [1.05, 1.05],
+			"danceEvery": 1,
+			"alpha": 1,
+			"zIndex": 425
+		},
+
+		{
+			"name": "horrorlight",
+			"assetPath": "stages/xMassCityMallNasty/horrorlight",
+			"position": [-2750, -1780],
+			"scale": 1,
+			"scroll": [1, 1],
+			"danceEvery": 1,
+			"blend": "overlay",
+			"alpha": 1,
+			"zIndex": 425
+		},
+		{
+			"name": "darkLight",
+			"assetPath": "stages/xMassCityMallNasty/darklight",
+			"position": [-2350, -1600],
+			"scale": 2.15,
+			"scroll": [0.8, 0.8],
+			"danceEvery": 1,
+			"blend": "multiply",
+			"alpha": 1,
+			"zIndex": 425
+		},
+		{
+			"name": "tentacleLeft",
+			"assetPath": "stages/xMassCityMallNasty/tentacles",
+			"position": [-200, 170],
+			"scale": [1, 1],
+			"scroll": [1, 1],
+			"danceEvery": 0,
+			"alpha": 0,
+			"zIndex": 260,
+			"startingAnimation": "attack",
+			"animations": [
+				{
+					"name": "tick",
+					"prefix": "warn splash left",
+					"frameRate": 24,
+					"flipX": false,
+					"looped": false
+				},
+				{
+					"name": "attack",
+					"prefix": "root attack left",
+					"frameRate": 24,
+					"flipX": false,
+					"looped": false
+				}
+			]
+		},
+		{
+			"name": "tentacleRight",
+			"assetPath": "stages/xMassCityMallNasty/tentacles",
+			"position": [750, 150],
+			"scale": [1, 1],
+			"scroll": [1, 1],
+			"danceEvery": 0,
+			"zIndex": 260,
+			"alpha": 0,
+			"startingAnimation": "attack",
+			"animations": [
+				{
+					"name": "tick",
+					"prefix": "warn splash right",
+					"frameRate": 24,
+					"flipX": false,
+					"looped": false
+				},
+				{
+					"name": "attack",
+					"prefix": "root attack right",
+					"frameRate": 24,
+					"flipX": false,
+					"looped": false
+				}
+			]
+		}
+	],
+	"characters": {
+		"bf": {
+			"zIndex": 250,
+			"position": [350, 225],
+			"cameraOffsets": [-100, -400]
+		},
+		"gf": {
+			"zIndex": -200,
+			"position": [0, 0],
+			"cameraOffsets": [-150, 50]
+		},
+		"dad": {
+			"zIndex": 300,
+			"position": [-1000, 275],
+			"cameraOffsets": [650, 100]
+		}
+	},
+	"name": "XMas City Mall Nasty (AmTake)",
+	"directory": "shared"
+}
