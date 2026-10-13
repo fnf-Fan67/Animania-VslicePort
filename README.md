@@ -76,7 +76,6 @@ A custom Story Menu with a track list, a difficulty selector, week titles and a 
    ```
    Funkin/
    └── mods/
-       └── animania/
    ```
 3. Launch the game. The mod loads automatically through Polymod.
 
