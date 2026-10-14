@@ -904,7 +904,7 @@ class FreshAnimania extends Song
 
     function startVideo()
 	{
-		VideoCutscene.play(Paths.videos('FRESH_CUTSCENE'), CutsceneType.ENDING);
+		VideoCutscene.play(Paths.videos('FRESH_CUTSCENE.mkv'), CutsceneType.ENDING);
 		VideoCutscene.vid.alpha = 0;
 		FlxTween.tween(VideoCutscene.vid, {alpha: 1}, .35, {ease: FlxEase.cubeOut});
 	}
