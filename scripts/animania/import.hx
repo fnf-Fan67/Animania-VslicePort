@@ -13,6 +13,7 @@ import funkin.Conductor;
 import funkin.Preferences;
 import funkin.Highscore;
 import funkin.Assets;
+import funkin.InitState;
 
 // funkin.modding package
 import funkin.modding.module.Module;
@@ -52,6 +53,7 @@ import funkin.play.notes.NoteSplash;
 import funkin.play.notes.NoteHoldCover;
 import funkin.play.notes.NoteSprite;
 import funkin.play.notes.Strumline;
+import funkin.play.notes.SustainTrail;
 
 import funkin.play.notes.notestyle.ScriptedNoteStyle;
 import funkin.play.notes.notestyle.NoteStyle;
@@ -95,11 +97,17 @@ import funkin.ui.transition.LoadingState;
 
 // funkin.audio package
 import funkin.audio.FunkinSound;
+import funkin.audio.VoicesGroup;
 
 import funkin.audio.waveform.WaveformSprite;
 import funkin.audio.waveform.WaveformSprite.WaveformOrientation;
 import funkin.audio.waveform.WaveformData;
 import funkin.audio.waveform.WaveformDataParser;
+
+// funkin.api package
+#if FEATURE_DISCORD_RPC
+import funkin.api.discord.DiscordClient;
+#end
 
 // funkin.graphics package
 import funkin.graphics.FunkinCamera;
@@ -131,6 +139,7 @@ import funkin.data.character.CharacterData.CharacterDataParser;
 import funkin.data.song.SongRegistry;
 import funkin.data.event.SongEventSchema;
 import funkin.data.notestyle.NoteStyleRegistry;
+import funkin.data.notestyle.NoteStyleData;
 
 // funkin.group package
 import funkin.group.FunkinGroup;

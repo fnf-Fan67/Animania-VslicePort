@@ -1,7 +1,5 @@
 package animania;
 
-// Downscroll EFECTIVO. En mobile con el esquema de flechas V-Slice fuerza el downscroll en la strumline y la healthbar
-// aunque Preferences.downscroll sea false, asi que hay que leerlo de la strumline (mismo valor que usa el juego).
 class AmScroll
 {
 	public static function isDown():Bool
@@ -11,17 +9,67 @@ class AmScroll
 		return Preferences.downscroll;
 	}
 
-	// Downscroll segun la PREFERENCIA del jugador (sin el forzado del esquema de flechas en mobile).
-	// Lo usan el score y el full combo: se ubican segun la preferencia, pero sus movimientos siguen la logica efectiva.
 	public static function isPref():Bool
 	{
 		return Preferences.downscroll == true;
 	}
 }
 
-// Pausa de tweens. FlxTween.globalManager sigue corriendo con el PauseSubState abierto, asi que los tweens del juego
-// (HUD, strumlines, camaras, shaders, etc.) seguirian avanzando. onPause se despacha ANTES de abrir el menu de pausa,
-// por eso solo se congelan los tweens que ya existen; los del propio menu de pausa se crean despues y no se tocan.
+class AmMlpc
+{
+	static var MOD_ID:String = 'MobileHitbox';
+
+	public static function isLoaded():Bool
+	{
+		return ModuleHandler.getModule(MOD_ID) != null;
+	}
+
+	static function isArrowsLayout():Bool
+	{
+		var ps = PlayState.instance;
+		if (ps == null || ps.playerStrumline == null) return true;
+		if (Std.string(Preferences.controlsScheme) != 'Arrows') return false;
+		var pb = ps.playerStrumline.background;
+		var ob = (ps.opponentStrumline != null) ? ps.opponentStrumline.background : null;
+		if (pb == null || ob == null) return ps.playerStrumline.isDownscroll == true;
+		return pb.width > ob.width * 1.6;
+	}
+
+	static function middlescroll():String
+	{
+		var ms = Save.instance.modOptions['mobileMiddlescroll'];
+		return (ms == null) ? 'Off' : Std.string(ms);
+	}
+
+	public static function pcHud():Bool
+	{
+		var ok = true;
+		#if mobile
+		ok = isLoaded() && !isArrowsLayout();
+		#end
+		return ok;
+	}
+
+	public static function playerStrum():Bool
+	{
+		var ok = true;
+		#if mobile
+		ok = pcHud() && middlescroll() != 'Widened';
+		#end
+		return ok;
+	}
+
+	public static function oppScale():Bool
+	{
+		var ok = true;
+		#if mobile
+		var ms = middlescroll();
+		ok = pcHud() && (ms == 'Off' || ms == 'On');
+		#end
+		return ok;
+	}
+}
+
 class AmTweenPause
 {
 	static var held:Array<Dynamic> = [];
@@ -60,17 +108,313 @@ class AmTweenPauseModule extends Module
 	override function onPause(event:PauseScriptEvent):Void
 	{
 		super.onPause(event);
-		if (event.eventCanceled) return; // si otro script cancela la pausa, el juego sigue corriendo
+		if (event.eventCanceled) return;
 		AmTweenPause.pauseAll();
 	}
 
 	override function onResume(event:ScriptEvent):Void
 	{
 		super.onResume(event);
-		if (event.eventCanceled) return; // el resume fue cancelado: el juego sigue en pausa
+		if (event.eventCanceled) return;
 		AmTweenPause.resumeAll();
 	}
 }
+
+class VocalDifficultySuffixModule extends Module
+{
+	static var DIFFICULTIES:Array<String> = ['normal', 'easy'];
+
+	var lastVocals:Dynamic = null;
+	var anyFound:Bool = false;
+
+	function new()
+	{
+		super('VocalDifficultySuffixModule', {state: PlayState});
+	}
+
+	override function onSongLoaded(event)
+	{
+		super.onSongLoaded(event);
+		applyDifficultyVocals();
+	}
+
+	override function onDestroy(event)
+	{
+		lastVocals = null;
+		super.onDestroy(event);
+	}
+
+	function applyDifficultyVocals():Void
+	{
+		var ps = PlayState.instance;
+		if (ps == null || ps.vocals == null || ps.vocals == lastVocals) return;
+
+		var old = ps.vocals;
+		lastVocals = old;
+
+		var chart = ps.currentChart;
+		if (chart == null) return;
+
+		var diff:String = (ps.currentDifficulty == null) ? '' : Std.string(ps.currentDifficulty).toLowerCase();
+		if (DIFFICULTIES.indexOf(diff) == -1) return;
+
+		anyFound = false;
+		var playerPaths = withDifficulty(chart.buildPlayerVoiceList(), diff);
+		var opponentPaths = chart.buildOpponentVoiceList();
+
+		var legacyPath:String = null;
+		if (playerPaths.length == 0 && opponentPaths.length == 0)
+		{
+			var variation = ps.currentVariation;
+			var suffix:String = (variation != null && variation != '' && variation != 'default') ? '-' + variation : '';
+			var candidate = insertDifficulty(Paths.voices(ps.currentSong.id, suffix), diff);
+			if (Assets.exists(candidate))
+			{
+				legacyPath = candidate;
+				anyFound = true;
+			}
+		}
+
+		if (!anyFound) return;
+
+		var group = new VoicesGroup();
+		for (p in playerPaths)
+			group.addPlayerVoice(FunkinSound.load(p, 1.0, false, false, false, false, null, null, true));
+		for (p in opponentPaths)
+			group.addOpponentVoice(FunkinSound.load(p, 1.0, false, false, false, false, null, null, true));
+		if (legacyPath != null)
+			group.addPlayerVoice(FunkinSound.load(legacyPath, 1.0, false, false, false, false, null, null, true));
+
+		if (group.members.length == 1)
+		{
+			group.legacyVoiceSystem = true;
+			group.legacyVoiceUsesPlayer = group.getPlayerVoice(0) != null;
+		}
+
+		group.forEach(function(snd) { snd.important = true; });
+
+		group.playerVoicesOffset = old.playerVoicesOffset;
+		group.opponentVoicesOffset = old.opponentVoicesOffset;
+		group.playerVolume = old.playerVolume;
+		group.opponentVolume = old.opponentVolume;
+
+		old.stop();
+		ps.vocals = group;
+		lastVocals = group;
+	}
+
+	function withDifficulty(paths:Array<String>, diff:String):Array<String>
+	{
+		var result:Array<String> = [];
+		for (p in paths)
+		{
+			var candidate = insertDifficulty(p, diff);
+			if (candidate != p && Assets.exists(candidate))
+			{
+				result.push(candidate);
+				anyFound = true;
+			}
+			else
+			{
+				result.push(p);
+			}
+		}
+		return result;
+	}
+
+	function insertDifficulty(path:String, diff:String):String
+	{
+		var dot = path.lastIndexOf('.');
+		if (dot < 0) return path;
+		return path.substr(0, dot) + '-' + diff + path.substr(dot);
+	}
+}
+
+#if FEATURE_DISCORD_RPC
+class DiscordPresenceModule extends Module
+{
+	static var TITLE_TEXT:String = 'In The AmTake Title';
+	static var MENU_TEXT:String = 'In The AmTake Menu';
+	static var TITLE_IMAGE:String = 'https://raw.githubusercontent.com/fnf-Fan67/Animania-VslicePort/main/previewImages/discord/animania.png';
+	static var SMALL_IMAGE:String = '';
+	static var REFRESH_SECONDS:Float = 1.0;
+	static var ENGINE_SETTLE_SECONDS:Float = 0.01;
+
+	static var SONGS:Array<Dynamic> = [
+		{id: 'cocoa-animania', name: 'Cocoa (AmTake)', image: 'https://raw.githubusercontent.com/fnf-Fan67/Animania-VslicePort/main/previewImages/discord/expansionMini.png'},
+		{id: 'bopeebo-animania', name: 'Bopeebo (AmTake)', image: 'https://raw.githubusercontent.com/fnf-Fan67/Animania-VslicePort/main/previewImages/discord/expansionMini.png'},
+		{id: 'fresh-animania', name: 'Fresh (AmTake)', image: 'https://raw.githubusercontent.com/fnf-Fan67/Animania-VslicePort/main/previewImages/discord/expansionMini.png'},
+		{id: 'dadbattle-animania', name: 'DadBattle (AmTake)', image: 'https://raw.githubusercontent.com/fnf-Fan67/Animania-VslicePort/main/previewImages/discord/expansionMini.png'},
+		{id: 'eggnog-animania', name: 'Eggnog (AmTake)', image: 'https://raw.githubusercontent.com/fnf-Fan67/Animania-VslicePort/main/previewImages/discord/animania05.png'},
+		{id: 'winter-horrorland-animania', name: 'Winter Horrorland (AmTake)', image: 'https://raw.githubusercontent.com/fnf-Fan67/Animania-VslicePort/main/previewImages/discord/expansionMini.png'},
+		{id: 'phone-call', name: 'PhoneCall', image: 'https://raw.githubusercontent.com/fnf-Fan67/Animania-VslicePort/main/previewImages/discord/animania05.png'}
+	];
+
+	var paused:Bool = false;
+	var loopTimer:FlxTimer = null;
+
+	function new()
+	{
+		super('DiscordPresenceModule');
+	}
+
+	override function onStateChangeEnd(event)
+	{
+		super.onStateChangeEnd(event);
+		paused = false;
+		restartLoop();
+		applyLater();
+	}
+
+	override function onSongStart(event)
+	{
+		super.onSongStart(event);
+		paused = false;
+		applyLater();
+	}
+
+	override function onPause(event)
+	{
+		super.onPause(event);
+		paused = true;
+		applyLater();
+	}
+
+	override function onResume(event)
+	{
+		super.onResume(event);
+		paused = false;
+		applyLater();
+	}
+
+	override function onSongRetry(event)
+	{
+		super.onSongRetry(event);
+		paused = false;
+		applyLater();
+	}
+
+	override function onGameOver(event)
+	{
+		super.onGameOver(event);
+		applyLater();
+	}
+
+	override function onFocusGained(event)
+	{
+		super.onFocusGained(event);
+		applyLater();
+	}
+
+	override function onFocusLost(event)
+	{
+		super.onFocusLost(event);
+		applyLater();
+	}
+
+	override function onDestroy(event)
+	{
+		stopLoop();
+		paused = false;
+		super.onDestroy(event);
+	}
+
+	function restartLoop():Void
+	{
+		stopLoop();
+		loopTimer = new FlxTimer().start(REFRESH_SECONDS, function(_) apply(), 0);
+	}
+
+	function stopLoop():Void
+	{
+		if (loopTimer == null) return;
+		loopTimer.cancel();
+		loopTimer.destroy();
+		loopTimer = null;
+	}
+
+	function applyLater():Void
+	{
+		new FlxTimer().start(ENGINE_SETTLE_SECONDS, function(_) apply());
+	}
+
+	function findSong(id:String):Dynamic
+	{
+		if (id == null) return null;
+		var lower = id.toLowerCase();
+		for (s in SONGS)
+		{
+			if (s.id == lower) return s;
+		}
+		return null;
+	}
+
+	function titleCase(text:String):String
+	{
+		var words = text.split('-').join(' ').split(' ');
+		var result:Array<String> = [];
+		for (w in words)
+		{
+			if (w == '') continue;
+			result.push(w.charAt(0).toUpperCase() + w.substr(1));
+		}
+		return result.join(' ');
+	}
+
+	function setPresence(details:String, state:String, image:String):Void
+	{
+		DiscordClient.setPresence({
+			details: details,
+			state: state,
+			largeImageKey: (image == null || image == '') ? TITLE_IMAGE : image,
+			smallImageKey: SMALL_IMAGE
+		});
+	}
+
+	function apply():Void
+	{
+		var current = FlxG.state;
+		if (current == null || Std.isOfType(current, InitState)) return;
+
+		if (Std.isOfType(current, PlayState))
+		{
+			applySong();
+			return;
+		}
+
+		if (Std.isOfType(current, TitleState))
+		{
+			setPresence(TITLE_TEXT, '', TITLE_IMAGE);
+			return;
+		}
+
+		setPresence(MENU_TEXT, '', TITLE_IMAGE);
+	}
+
+	function applySong():Void
+	{
+		var ps = PlayState.instance;
+		if (ps == null || ps.currentSong == null) return;
+
+		var entry = findSong(ps.currentSong.id);
+		if (entry == null) return;
+		if (ps.isChartingMode || ps.currentSong.isDiscordRPCAnonymous()) return;
+
+		var difficulty:String = (ps.currentDifficulty == null) ? '???' : titleCase(Std.string(ps.currentDifficulty));
+
+		var mode:String = 'Freeplay';
+		if (PlayStatePlaylist.isStoryMode) mode = 'Story Mode';
+		else if (ps.isPracticeMode) mode = 'Practice';
+		else if (ps.isBotPlayMode) mode = 'Bot Play';
+
+		var prefix:String = '';
+		if (ps.isPlayerDying || ps.isGameOverState) prefix = 'Game Over - ';
+		else if (paused) prefix = 'Paused - ';
+
+		setPresence('Playing: ' + entry.name, prefix + mode + ' [' + difficulty + ']', entry.image);
+	}
+}
+#end
 
 class KeyboardModule extends Module
 {
@@ -120,14 +464,12 @@ class QualityOptions extends Module
 
         save = Save.instance;
 
-        // shaders: activados por defecto
         if (save.modOptions['shaders'] == null)
         {
             save.modOptions['shaders'] = true;
             save.flush();
         }
 
-        // lowQuality: desactivado por defecto
         if (save.modOptions['lowQuality'] == null)
         {
             save.modOptions['lowQuality'] = false;
@@ -135,7 +477,6 @@ class QualityOptions extends Module
         }
     }
 
-    // ---- lectura desde otros scripts ----
     function getShaders():Bool
     {
         if (save == null) save = Save.instance;
@@ -198,32 +539,21 @@ class BopeeboAnimaniaSong extends Song
 		super('bopeebo-animania');
 	}
 
-	// ---------------------------------------------------------------------------------
-	//  AJUSTES DEL REBOTE DE RECEPTORES
-	// ---------------------------------------------------------------------------------
+	var bounceMinAmp = 2.0;
+	var bounceMaxAmp = 25.0;
+	var bounceRampBeats = 32.0;
+	var bounceFadeSec = 0.6;
+	var bounceOpponent = false;
 
-	var bounceMinAmp = 2.0; // px de subida al empezar (sutil)
-	var bounceMaxAmp = 25.0; // px de subida al terminar la rampa
-	var bounceRampBeats = 32.0; // beats que tarda en llegar de min a max (96 -> 128)
-	var bounceFadeSec = 0.6; // segundos que tarda en entrar / salir el efecto (evita saltos al activar o desactivar)
-	var bounceOpponent = false; // false = rebota solo el strumline del jugador
-
-	var bounceOn = false; // activo desde moveIn (beat 96) hasta moveOut (beat 128)
+	var bounceOn = false;
 	var bounceStartBeat = 96;
 
 	var hudZoomBackup = 1.0;
 	var scrollTween = null;
 
-	// ---------------------------------------------------------------------------------
-	//  REBOTE: una subida y bajada suave por beat (sineInOut), en fase con el Conductor
-	//  (currentBeatTime), asi que es independiente del bop del HUD. Los receptores estan arriba
-	//  justo en el beat y abajo (posicion base) a mitad de beat.
-	//  Solo se mueven los StrumlineNote; las notas y sustains siguen en su posicion normal.
-	// ---------------------------------------------------------------------------------
-
-	var bounceBaseY = [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]; // [0 = oponente, 1 = jugador][col], relativa al strumline
+	var bounceBaseY = [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]];
 	var bouncePlaced = false;
-	var bounceGain = 0.0; // 0..1, entra con bounceOn y sale al apagarse
+	var bounceGain = 0.0;
 	var bounceLastOff = 0.0;
 	var bouncePostFn = null;
 
@@ -250,20 +580,16 @@ class BopeeboAnimaniaSong extends Song
 		bouncePlaced = true;
 	}
 
-	// Offset Y actual (negativo = arriba). Periodo = 1 beat.
 	function bounceOffset()
 	{
 		var beatT = Conductor.instance.currentBeatTime;
-		var p = beatT - Math.floor(beatT); // 0..1 dentro del beat
+		var p = beatT - Math.floor(beatT);
 
-		// amplitud: rampa lineal de min a max, multiplicada por el fade de entrada / salida
 		var k = (beatT - bounceStartBeat) / bounceRampBeats;
 		if (k < 0.0) k = 0.0;
 		if (k > 1.0) k = 1.0;
 		var amp = (bounceMinAmp + (bounceMaxAmp - bounceMinAmp) * k) * bounceGain;
 
-		// w = 1 (arriba) en el beat -> 0 (base) a mitad de beat -> 1 al siguiente beat.
-		// Para otra curva cambia FlxEase.sineInOut por FlxEase.quadInOut (mas marcada) u otra.
 		var w = 0.0;
 		if (p < 0.5) w = 1.0 - FlxEase.sineInOut(p * 2.0);
 		else w = FlxEase.sineInOut((p - 0.5) * 2.0);
@@ -271,7 +597,6 @@ class BopeeboAnimaniaSong extends Song
 		return -amp * w;
 	}
 
-	// Corre DESPUES de Strumline.update (FlxG.signals.postUpdate).
 	function bouncePost()
 	{
 		var game = PlayState.instance;
@@ -310,10 +635,6 @@ class BopeeboAnimaniaSong extends Song
 		}
 	}
 
-	// ---------------------------------------------------------------------------------
-	//  HOOKS DE LA CANCION
-	// ---------------------------------------------------------------------------------
-
 	function resetState()
 	{
 		hudZoomBackup = 1.0;
@@ -342,7 +663,6 @@ class BopeeboAnimaniaSong extends Song
 
 	function onSongRetry(event)
 	{
-		// bouncePost deja los receptores en su base en el proximo frame (offset 0).
 		resetState();
 	}
 
@@ -355,7 +675,6 @@ class BopeeboAnimaniaSong extends Song
 		var now = Conductor.instance.songPosition;
 		var beatMs = Conductor.instance.beatLengthMs;
 
-		// Rebote de receptores: se enciende con moveIn y se apaga con moveOut (el resto lo hace bouncePost).
 		if (beat == 96)
 		{
 			bounceOn = true;
@@ -383,15 +702,14 @@ class BopeeboAnimaniaSong extends Song
 			var aa = AmScroll.isDown() ? 1.0 : -1.0;
 			hudZoomBackup = pls.defaultHUDCameraZoom;
 
-			// NOTA: el fork usaba `scrollAngle`; en vanilla uso `angle` (existe seguro en FlxCamera).
 			FlxTween.tween(cam, {angle: -2}, 17, {ease: FlxEase.sineInOut});
 			scrollTween = FlxTween.num(cam.scroll.y, -15.0 * aa, 17, {ease: FlxEase.sineInOut}, function(v) {
 				cam.scroll.y = v;
 			});
-			// Zoom del HUD: solo PC.
-			#if !mobile
+			if (AmMlpc.pcHud())
+			{
 			FlxTween.tween(pls, {defaultHUDCameraZoom: 0.75}, 13, {startDelay: 5, ease: FlxEase.sineInOut});
-			#end
+			}
 		}
 
 		if (beat == 128)
@@ -403,10 +721,11 @@ class BopeeboAnimaniaSong extends Song
 				cam2.scroll.y = v;
 			});
 
-			#if !mobile
+			if (AmMlpc.pcHud())
+			{
 			FlxTween.cancelTweensOf(pls, ['defaultHUDCameraZoom']);
 			pls.defaultHUDCameraZoom = hudZoomBackup;
-			#end
+			}
 
 			moveOut();
 		}
@@ -449,17 +768,12 @@ class BopeeboAnimaniaSong extends Song
 		resetState();
 	}
 
-	// ---------------------------------------------------------------------------------
-	//  MOVIMIENTOS DE HUD / STRUMLINES  (equivalentes a moveIn / moveOut del original)
-	// ---------------------------------------------------------------------------------
-
 	function moveIn()
 	{
 		var pls = PlayState.instance;
 		var opp = pls.opponentStrumline;
 		var ply = pls.playerStrumline;
 		var offset = AmScroll.isDown() ? -300.0 : 300.0;
-		// score y full combo se ubican segun la preferencia: se mueven hacia afuera de SU borde de pantalla.
 		var offsetScore = AmScroll.isPref() ? -300.0 : 300.0;
 
 		var scoreEls = scoreFcElements();
@@ -474,19 +788,24 @@ class BopeeboAnimaniaSong extends Song
 		}
 		fadeIcons(pls, 0.0, 6.26, FlxEase.sineInOut);
 
-		#if !mobile
+		if (AmMlpc.playerStrum())
+		{
 		FlxTween.tween(ply, {x: ply.x - 150}, 16, {ease: FlxEase.sineInOut});
-		#end
+		}
 
 		FlxTween.tween(opp, {y: opp.y + 25, alpha: 0.75}, 14, {ease: FlxEase.sineInOut});
-		#if !mobile
+		if (AmMlpc.oppScale())
+		{
 		FlxTween.num(opp.strumlineScale.x, 0.9, 14, {ease: FlxEase.sineInOut}, function(v) {
 			opp.strumlineScale.set(v, v);
 		});
+		}
+		if (AmMlpc.playerStrum())
+		{
 		FlxTween.num(ply.strumlineScale.x, 1.075, 16, {ease: FlxEase.sineInOut}, function(v) {
 			ply.strumlineScale.set(v, v);
 		});
-		#end
+		}
 	}
 
 	function moveOut()
@@ -509,22 +828,26 @@ class BopeeboAnimaniaSong extends Song
 		}
 		fadeIcons(pls, 1.0, 0.26, FlxEase.sineInOut);
 
-		#if !mobile
+		if (AmMlpc.playerStrum())
+		{
 		FlxTween.tween(ply, {x: ply.x + 150}, 1, {ease: FlxEase.cubeOut});
-		#end
+		}
 
 		FlxTween.tween(opp, {y: opp.y - 25, alpha: 1}, 1, {ease: FlxEase.backOut});
-		#if !mobile
+		if (AmMlpc.oppScale())
+		{
 		FlxTween.num(opp.strumlineScale.x, 1.0, 1, {ease: FlxEase.backOut}, function(v) {
 			opp.strumlineScale.set(v, v);
 		});
+		}
+		if (AmMlpc.playerStrum())
+		{
 		FlxTween.num(ply.strumlineScale.x, 1.0, 1, {ease: FlxEase.cubeOut}, function(v) {
 			ply.strumlineScale.set(v, v);
 		});
-		#end
+		}
 	}
 
-	// Score + full combo (se posicionan segun la preferencia de downscroll, no segun el forzado de mobile).
 	function scoreFcElements()
 	{
 		var out = [];
@@ -550,7 +873,6 @@ class BopeeboAnimaniaSong extends Song
 		return out;
 	}
 
-	// Mismo patron que DadBattle (setHudHidden): modulos con null-check antes de tocar sus campos.
 	function healthBarElements()
 	{
 		var out = [];
@@ -577,7 +899,6 @@ class BopeeboAnimaniaSong extends Song
 			}
 		}
 
-		// DadBattle lo busca como "FullComboSpr"; este script usaba "FullComboModule": se prueba con los dos.
 		var fc = ModuleHandler.getModule('FullComboSpr');
 		if (fc == null) fc = ModuleHandler.getModule('FullComboModule');
 		if (fc != null && fc.fcSprite != null) out[out.length] = fc.fcSprite;
@@ -641,18 +962,19 @@ class FreshAnimania extends Song
 
 		solo_time_d = new FunkinSprite(0, 0, Paths.animateAtlas('stages/mainStageAmTake/solotime_cardboard', 'shared'));
         solo_time_d.zIndex = 8;
-        solo_time_d.anim.addByFrameLabel("off", "off loop", 24, false);
-        solo_time_d.anim.addByFrameLabel("turn", "turned on", 24, false);
-        solo_time_d.anim.addByFrameLabel("on", "on loop", 24, false);
-        solo_time_d.anim.onFinish.add((animName) -> if (animName == "turn") solo_time_d.anim.play('on', true));
-        solo_time_d.anim.play('off', true);
         solo_time_d.applyStageMatrix = true;
+
+        addAtlasAnim(solo_time_d, "off", "off loop", 24, true);
+        addAtlasAnim(solo_time_d, "turn", "turned on", 24, false);
+        addAtlasAnim(solo_time_d, "on", "on loop", 24, true);
+        solo_time_d.animation.onFinish.add((animName) -> if (animName == "turn") playSoloSign('on'));
+        playSoloSign('off');
         currentStage.add(solo_time_d);
 
         solo_time_d.x += 325;
-        solo_time_d.y -= 350;
+		solo_time_d.y -= 350;
 
-        solo_time_d.y -= 800;
+		solo_time_d.y -= 800;
 
         currentStage.refresh();
 
@@ -696,6 +1018,46 @@ class FreshAnimania extends Song
         });
     }
 
+    /**
+     * Registra una animacion del atlas buscando el id primero como frame label y despues como symbol.
+     * (addBySymbol a secas no registra nada si el nombre es un frame label, y entonces play() no hace nada.)
+     */
+    function addAtlasAnim(spr:FunkinSprite, animName:String, id:String, fps:Int, loop:Bool):Bool
+    {
+        var norm = (s) -> s.toLowerCase().split(" ").join("").split("_").join("");
+        var labels:Array<String> = spr.getFrameLabelList();
+
+        var found:String = null;
+        for (l in labels) if (l == id) { found = l; break; }
+        if (found == null) for (l in labels) if (norm(l) == norm(id)) { found = l; break; }
+
+        if (found != null)
+        {
+            spr.anim.addByFrameLabel(animName, found, fps, loop);
+            return true;
+        }
+
+        try
+        {
+            spr.anim.addBySymbol(animName, id, fps, loop);
+        }
+        catch (e:Dynamic) {}
+
+        if (spr.animation.getNameList().contains(animName)) return true;
+
+        var symbols:Array<String> = [];
+        try { for (k in spr.library.dictionary.keys()) symbols.push(k); } catch (e:Dynamic) {}
+        trace('[FreshAnimania] No se encontro "' + id + '" en el atlas. Labels: ' + labels + ' | Symbols: ' + symbols);
+        return false;
+    }
+
+    function playSoloSign(name:String):Void
+    {
+        if (solo_time_d == null) return;
+        if (!solo_time_d.animation.getNameList().contains(name)) return;
+        solo_time_d.animation.play(name, true);
+    }
+
     override function onBeatHit(event:SongTimeScriptEvent):Void
     {
         super.onBeatHit(event);
@@ -729,9 +1091,12 @@ class FreshAnimania extends Song
                 trace('comenzando evento');
                 moveIn();
             case 128:
-                FlxTween.tween(solo_time_d, {y: solo_time_d.y + 300}, 4, {ease: FlxEase.sineOut});
+                FlxTween.tween(solo_time_d, {y: solo_time_d.y + 800}, 4, {ease: FlxEase.sineOut});
+				trace('inicio');
             case 143:
-                FlxTween.tween(solo_time_d, {y: solo_time_d.y + 550}, 4, {ease: FlxEase.sineOut});
+                playSoloSign('turn');
+                FlxTween.tween(solo_time_d, {y: solo_time_d.y - 800}, 7, {startDelay: 12, ease: FlxEase.sineIn});
+				trace('prende');
             case 144:
                 var vin2 = currentStage.getNamedProp('vin2');
                 vin2.alpha = 0;
@@ -779,7 +1144,6 @@ class FreshAnimania extends Song
         var offset = (AmScroll.isDown() ? -200 : 200);
         var offsetScore = (AmScroll.isPref() ? -200 : 200);
 
-        // HealthBar & HealthBarBG
         FlxTween.tween(health, {y: health.y + offset}, 10, {ease: FlxEase.sineInOut});
 		FlxTween.tween(ogHealthbar, {y: ogHealthbar.y + offset}, 10, {ease: FlxEase.sineInOut});
 		FlxTween.tween(health2, {y: health2.y + offset}, 10, {ease: FlxEase.sineInOut});
@@ -791,23 +1155,26 @@ class FreshAnimania extends Song
 			FlxTween.tween(scoreDigits[i], {y: scoreDigits[i].y + offsetScore}, 10, {ease: FlxEase.sineOut});
 		}
 
-        // IconP1 & P2
         FlxTween.tween(iconP1, {y: iconP1.y + offset}, 10, {ease: FlxEase.sineInOut});
         FlxTween.tween(iconP2, {y: iconP2.y + offset}, 10, {ease: FlxEase.sineInOut});
 
 
         FlxTween.tween(opponentStrumline, {x: opponentStrumline.x - 100, alpha: 0.75}, 12.25, {ease: FlxEase.sineOut});
-		#if !mobile
+		if (AmMlpc.playerStrum())
+		{
         FlxTween.tween(playerStrumline, {x: playerStrumline.x - FlxG.width/4 + 20}, 14.55, {ease: FlxEase.sineInOut});
-		#end
+		}
 
-		// Escalado de strumlines: solo PC.
-		#if !mobile
+		if (AmMlpc.oppScale())
+		{
         FlxTween.num(opponentStrumline.strumlineScale.x, .65, 12.25, {ease: FlxEase.sineOut}, v -> opponentStrumline.strumlineScale.x = v);
         FlxTween.num(opponentStrumline.strumlineScale.y, .65, 12.25, {ease: FlxEase.sineOut}, v -> opponentStrumline.strumlineScale.y = v);
+		}
+		if (AmMlpc.playerStrum())
+		{
         FlxTween.num(playerStrumline.strumlineScale.x, 1.1, 14.55, {ease: FlxEase.sineInOut}, v -> playerStrumline.strumlineScale.x = v);
 		FlxTween.num(playerStrumline.strumlineScale.y, 1.1, 14.55, {ease: FlxEase.sineInOut}, v -> playerStrumline.strumlineScale.y = v);
-		#end
+		}
 	}
 
     function moveOut()
@@ -827,7 +1194,6 @@ class FreshAnimania extends Song
         var offset = (AmScroll.isDown() ? -200 : 200 );
         var offsetScore = (AmScroll.isPref() ? -200 : 200);
 
-        // HealthBar & HealthBarBG
         FlxTween.tween(health, {y: health.y - offset}, 1.5, {ease: FlxEase.sineOut});
 		FlxTween.tween(ogHealthbar, {y: ogHealthbar.y - offset}, 1.5, {ease: FlxEase.sineOut});
 		FlxTween.tween(health2, {y: health2.y - offset}, 1.5, {ease: FlxEase.sineOut});
@@ -839,21 +1205,25 @@ class FreshAnimania extends Song
 			FlxTween.tween(scoreDigits[i], {y: scoreDigits[i].y - offsetScore}, 1.5, {ease: FlxEase.sineOut});
 		}
 
-        // Icon P1 & P2
         FlxTween.tween(iconP1, {y: iconP1.y - offset}, 1.5, {ease: FlxEase.sineOut});
         FlxTween.tween(iconP2, {y: iconP2.y - offset}, 1.5, {ease: FlxEase.sineOut});
 
         FlxTween.tween(opponentStrumline, {x: opponentStrumline.x + 100, alpha: 1}, 2.65, {ease: FlxEase.backOut});
-		#if !mobile
+		if (AmMlpc.playerStrum())
+		{
         FlxTween.tween(playerStrumline, {x: playerStrumline.x + FlxG.width/4 - 20}, 2.45, {ease: FlxEase.cubeOut});
-		#end
+		}
 
-		#if !mobile
+		if (AmMlpc.oppScale())
+		{
         FlxTween.num(opponentStrumline.strumlineScale.x, 1, 2.65, {ease: FlxEase.backOut}, v -> opponentStrumline.strumlineScale.x = v);
 		FlxTween.num(opponentStrumline.strumlineScale.y, 1, 2.65, {ease: FlxEase.backOut}, v -> opponentStrumline.strumlineScale.y = v);
+		}
+		if (AmMlpc.playerStrum())
+		{
         FlxTween.num(playerStrumline.strumlineScale.x, 1, 2.45, {ease: FlxEase.cubeOut}, v -> playerStrumline.strumlineScale.x = v);
 		FlxTween.num(playerStrumline.strumlineScale.y, 1, 2.45, {ease: FlxEase.cubeOut}, v -> playerStrumline.strumlineScale.y = v);
-		#end
+		}
     }
 
     public override function onSongEnd(event:CountdownScriptEvent):Void
@@ -882,14 +1252,11 @@ class FreshAnimania extends Song
 
     function startCutscene()
 	{
-		//PlayState.instance.camHUD.visible = false;
-		//PlayState.instance.timeBar.visible = false;
 		PlayState.instance.isInCutscene = true;
 		PlayState.instance.mayPauseGame = false;
 		hasPlayedCutscene = true;
 
 		FlxTween.tween(PlayState.instance.camHUD, {alpha: 0}, 1, {ease: FlxEase.backOut});
-		// FlxTween.tween(PlayState.instance.timeBar, {alpha: 0}, 1, {ease: FlxEase.backOut});
 		PlayState.instance.tweenCameraZoom(0.9, 1.9, true, FlxEase.quadInOut);
 		PlayState.instance.tweenCameraToPosition(PlayState.instance.cameraFollowPoint.x + 100, PlayState.instance.cameraFollowPoint.y + 50, 1.9, FlxEase.quadInOut);
 		var blackScreen = new FlxSprite(-200, -200).makeGraphic(FlxG.width * 2, FlxG.height * 2, FlxColor.BLACK);
@@ -899,7 +1266,7 @@ class FreshAnimania extends Song
 		blackScreen.alpha = 0;
 		FlxTween.tween(blackScreen, {alpha: 1}, 1.75, {ease: FlxEase.quadInOut});
 
-		FlxTimer.wait(2, startVideo); //startVideo();
+		FlxTimer.wait(2, startVideo);
 	}
 
     function startVideo()
@@ -937,6 +1304,22 @@ class DadBattleAnimania extends Song
 	var videoStarted = false;
 	var hiddenHud = [];
 
+	var videoToken = 0;
+	var videoPrecached = false;
+	var videoReady = false;
+	var videoPending = false;
+	var videoPlaying = false;
+	var videoFinished = false;
+	var videoWait = 0.0;
+	var videoPlayTime = 0.0;
+	var videoStallTime = 0.0;
+	var videoMaxWait = 3.0;
+	var videoStallMax = 2.0;
+	var videoEndBeat = 250;
+
+	var overlayBaseAlpha = null;
+	var dadIdleBase = "";
+
 	var dangerBar = null;
 	var dangerShader = null;
 	var dangerBarTried = false;
@@ -964,498 +1347,174 @@ class DadBattleAnimania extends Song
 	var oppAnchorDX = 0.0;
 	var oppAnchorDY = 0.0;
 
-	var mcDefTipAmp = 45.0;
-	var mcDefToeAmp = 45.0;
-	var mcDefZigAmp = 56.0;
-	var mcDefTanAmp = 45.0;
+	var mlOpp = null;
+	var mlPlr = null;
+	var mlTw = new StringMap();
+	var mlPlaced = false;
+	var mlStage = 0;
+	var mlTriggers = [];
+	var mlInIdle = true;
+	var mlOppRecs = [];
+	var mlPlrRecs = [];
+	var mlPlrRecScale = 1.0;
+	var mlPlrNoteScale = 1.0;
+	var mlOppIncomingFn = null;
+	var mlPlrIncomingFn = null;
+	var mlPostFn = null;
 
-	var mcOpp = 0;
-	var mcPlr = 1;
-
-	var mcVals = new StringMap();
-	var mcTweens = [];
-	var mcPlaced = false;
-	var mcBaseReady = false;
-
-	// mcRefresh solo relee mcVals cuando algo cambio (mcSet / tween activo / mcInit).
-	var mcDirty = true;
-	var mcShakeAny = false;
-	var mcShakeV = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcPostFn = null;
-	var mcOppIncomingFn = null;
-	var mcPlrIncomingFn = null;
-	var mcInIdle = true;
-	var mcTime = 0.0;
-	var mcOx = 0.0;
-	var mcOy = 0.0;
-
-	// Arrays de 8 = 2 carriles x 4 columnas (idx = lane * 4 + col)
-	var mcBaseRX = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcBaseRY = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcBaseRS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-	var mcAlphaNow = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-	var mcScaleNow = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-	var mcScaleApplied = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-	var mcXo = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcYo = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcShx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcShy = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcTip = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcTipAmp = [45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0];
-	var mcTipPer = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
-	var mcToe = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcToeAmp = [45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0];
-	var mcZig = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcZigAmp = [56.0, 56.0, 56.0, 56.0, 56.0, 56.0, 56.0, 56.0];
-	var mcTan = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcTanAmp = [45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0, 45.0];
-
-	// Claves precalculadas: antes se concatenaban 3 strings por cada lectura (cientos por frame).
-	var mcKeyCache = new StringMap();
-
-	function mcKey(name, lane, col)
+	function mlLane()
 	{
-		var arr = mcKeyCache.get(name);
-		if (arr == null)
-		{
-			arr = [];
-			var i = 0;
-			while (i < 8)
-			{
-				arr[i] = name + "|" + Std.int(i / 4) + "|" + (i % 4);
-				i += 1;
-			}
-			mcKeyCache.set(name, arr);
-		}
-		return arr[lane * 4 + col];
+		return {ox: 0.0, oy: 0.0, bobAmp: 0.0, alpha: 1.0, pulse: 1.0, ax: 0.0, ay: 0.0, pa: 1.0,
+			b0: 0.0, b1: 0.0, b2: 0.0, b3: 0.0, offs: [0.0, 0.0, 0.0, 0.0], ry: [0.0, 0.0, 0.0, 0.0], waveOn: false};
 	}
 
-	function mcDefault(name)
+	function mlTo(name, L, field, target, secs, ease, delay)
 	{
-		if (name == "alpha" || name == "scale") return 1.0;
-		return 0.0;
+		var key = name + ":" + field;
+		var old = mlTw.get(key);
+		if (old != null) old.cancel();
+
+		var tw = FlxTween.num(Reflect.field(L, field), target, secs, {ease: ease, startDelay: delay}, function(v) {
+			Reflect.setField(L, field, v);
+		});
+		mlTw.set(key, tw);
 	}
 
-	// ---- Almacen plano de parametros (reemplaza al StringMap con claves "nombre|lane|col") ----
-	// slot = pid * 8 + lane * 4 + col.   Sin strings ni busquedas por nombre dentro del frame.
-	// pid: 0 alpha, 1 scale, 2 xOffset, 3 yOffset, 4 tipsy, 5 tipsy:amplitude, 6 tipsy:period,
-	//      7 tipToe, 8 tipToe:amplitude, 9 zigzag, 10 zigzag:amplitude, 11 tanWave, 12 tanWave:amplitude, 13 shake
-	// (un nombre fuera de esta tabla se ignora)
-	var mcPidMap = null;
-	var mcRaw = [];
-
-	// offsets calculados una vez por frame (sin depender de la distancia de la nota)
-	var mcBaseOx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-	var mcBaseOy = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
-
-	function mcPidOf(name)
-	{
-		if (mcPidMap == null)
-		{
-			mcPidMap = new StringMap();
-			var names = ["alpha", "scale", "xOffset", "yOffset", "tipsy", "tipsy:amplitude", "tipsy:period", "tipToe", "tipToe:amplitude", "zigzag", "zigzag:amplitude", "tanWave", "tanWave:amplitude", "shake"];
-			var n = 0;
-			while (n < names.length)
-			{
-				mcPidMap.set(names[n], n);
-				n += 1;
-			}
-		}
-		var p = mcPidMap.get(name);
-		return (p == null) ? -1 : p;
-	}
-
-	function mcResetRaw()
-	{
-		mcRaw = [];
-		var defs = [1.0, 1.0, 0.0, 0.0, 0.0, mcDefTipAmp, 1.0, 0.0, mcDefToeAmp, 0.0, mcDefZigAmp, 0.0, mcDefTanAmp, 0.0];
-		var p = 0;
-		while (p < 14)
-		{
-			var i = 0;
-			while (i < 8)
-			{
-				mcRaw[p * 8 + i] = defs[p];
-				i += 1;
-			}
-			p += 1;
-		}
-	}
-
-	// Los fallbacks (amplitudes / period) ya viven en los valores iniciales de mcResetRaw.
-	function mcGet(name, lane, col)
-	{
-		var p = mcPidOf(name);
-		if (p < 0) return mcDefault(name);
-		if (mcRaw.length == 0) mcResetRaw();
-		return mcRaw[p * 8 + lane * 4 + col];
-	}
-
-	function mcGetF(name, lane, col, fallback)
-	{
-		return mcGet(name, lane, col);
-	}
-
-	// lane: 0 = opponent, 1 = player, -1 = ambos. cols: null = las 4 columnas, o [0..3] (left, down, up, right)
-	function mcSet(name, value, lane, cols)
-	{
-		var p = mcPidOf(name);
-		if (p < 0) return;
-		if (mcRaw.length == 0) mcResetRaw();
-
-		mcDirty = true;
-
-		var l = (lane < 0) ? 0 : lane;
-		var lEnd = (lane < 0) ? 1 : lane;
-		while (l <= lEnd)
-		{
-			var c = 0;
-			while (c < 4)
-			{
-				if (cols == null || cols.indexOf(c) != -1) mcRaw[p * 8 + l * 4 + c] = value;
-				c += 1;
-			}
-			l += 1;
-		}
-	}
-
-	// Modchart.setField("tipsy", "amplitude", 30, lane) -> parametro "tipsy:amplitude"
-	function mcSetField(name, field, value, lane, cols)
-	{
-		mcSet(name + ":" + field, value, lane, cols);
-	}
-
-	// inBeats = true  -> start/dur en beats  (Modchart.easeBeat, sin el parametro bpm: se usa el beat real del Conductor)
-	// inBeats = false -> start/dur en ms     (Modchart.ease)
-	function mcEase(name, target, start, dur, ease, lane, cols, inBeats)
-	{
-		var p = mcPidOf(name);
-		if (p < 0) return;
-		if (mcRaw.length == 0) mcResetRaw();
-
-		var l = (lane < 0) ? 0 : lane;
-		var lEnd = (lane < 0) ? 1 : lane;
-		while (l <= lEnd)
-		{
-			var c = 0;
-			while (c < 4)
-			{
-				if (cols == null || cols.indexOf(c) != -1)
-				{
-					mcTweens[mcTweens.length] = {
-						slot: p * 8 + l * 4 + c,
-						to: target,
-						start: start,
-						dur: dur,
-						ease: ease,
-						beats: inBeats,
-						from: 0.0,
-						started: false
-					};
-				}
-				c += 1;
-			}
-			l += 1;
-		}
-	}
-
-	function mcUpdateTweens()
-	{
-		var total = mcTweens.length;
-		if (total == 0) return;
-
-		var nowMs = Conductor.instance.songPosition;
-		var nowBeat = Conductor.instance.currentBeatTime;
-		var keep = [];
-
-		var i = 0;
-		while (i < total)
-		{
-			var r = mcTweens[i];
-			i += 1;
-
-			var t = r.beats ? nowBeat : nowMs;
-			if (t < r.start)
-			{
-				keep[keep.length] = r;
-				continue;
-			}
-
-			if (!r.started)
-			{
-				r.started = true;
-				r.from = mcRaw[r.slot];
-			}
-
-			var p = (r.dur <= 0) ? 1.0 : (t - r.start) / r.dur;
-			mcDirty = true;
-			if (p >= 1.0)
-			{
-				mcRaw[r.slot] = r.to;
-			}
-			else
-			{
-				mcRaw[r.slot] = r.from + (r.to - r.from) * r.ease(p);
-				keep[keep.length] = r;
-			}
-		}
-
-		mcTweens = keep;
-	}
-
-	// Pasa el almacen a los arrays *Now (solo si hubo cambios) y calcula, cada frame, los offsets
-	// que no dependen de la distancia de la nota (xOffset/yOffset/shake + tipsy + tipToe).
-	function mcRefresh()
-	{
-		mcTime = Conductor.instance.songPosition / 1000;
-		if (mcRaw.length == 0) mcResetRaw();
-
-		if (mcDirty)
-		{
-			mcDirty = false;
-			mcShakeAny = false;
-
-			var idx = 0;
-			while (idx < 8)
-			{
-				mcAlphaNow[idx] = Math.max(0, Math.min(1, mcRaw[idx]));
-				mcScaleNow[idx] = Math.max(0.01, mcRaw[8 + idx]);
-				mcXo[idx] = mcRaw[16 + idx];
-				mcYo[idx] = mcRaw[24 + idx];
-
-				mcTip[idx] = mcRaw[32 + idx];
-				mcTipAmp[idx] = mcRaw[40 + idx];
-				mcTipPer[idx] = mcRaw[48 + idx];
-				mcToe[idx] = mcRaw[56 + idx];
-				mcToeAmp[idx] = mcRaw[64 + idx];
-				mcZig[idx] = mcRaw[72 + idx];
-				mcZigAmp[idx] = mcRaw[80 + idx];
-				mcTan[idx] = mcRaw[88 + idx];
-				mcTanAmp[idx] = mcRaw[96 + idx];
-
-				var sh = mcRaw[104 + idx];
-				mcShakeV[idx] = sh;
-				if (sh != 0)
-				{
-					mcShakeAny = true;
-					mcShx[idx] = (Math.random() * 2 - 1) * sh * 16;
-					mcShy[idx] = (Math.random() * 2 - 1) * sh * 16;
-				}
-				else
-				{
-					mcShx[idx] = 0;
-					mcShy[idx] = 0;
-				}
-
-				idx += 1;
-			}
-		}
-		else if (mcShakeAny)
-		{
-			var si = 0;
-			while (si < 8)
-			{
-				var shv = mcShakeV[si];
-				if (shv != 0)
-				{
-					mcShx[si] = (Math.random() * 2 - 1) * shv * 16;
-					mcShy[si] = (Math.random() * 2 - 1) * shv * 16;
-				}
-				si += 1;
-			}
-		}
-
-		var t = mcTime;
-		var b = 0;
-		while (b < 8)
-		{
-			var col = b % 4;
-			var ox = mcXo[b] + mcShx[b];
-			var oy = mcYo[b] + mcShy[b];
-
-			if (mcTip[b] != 0)
-				oy += mcTip[b] * mcTipAmp[b] * Math.cos(t * (mcTipPer[b] * 1.2 + 1.2) + col * 1.8);
-
-			if (mcToe[b] != 0)
-				oy -= mcToe[b] * mcToeAmp[b] * Math.abs(Math.sin(t * 2.5 + col * 1.57));
-
-			mcBaseOx[b] = ox;
-			mcBaseOy[b] = oy;
-			b += 1;
-		}
-	}
-
-	// X de cada columna relativa al strumline = Strumline.getXPos (incluye noteSpacingScale, strumlineScale y, en mobile con
-	// el esquema de flechas, el desplazamiento del jugador). NO se puede asumir col * 112 * escala: en mobile la separacion
-	// no es regular y las NoteSprite se juntaban.
-	var mcColXs = [0.0, 0.0, 0.0, 0.0];
-
-	function mcFillColX(s)
+	function mlBob(name, L, half)
 	{
 		var c = 0;
 		while (c < 4)
 		{
-			var v = 0.0;
-			var ok = false;
-			try
-			{
-				v = s.getXPos(s.getByIndex(c).direction);
-				ok = true;
-			}
-			catch (e:Dynamic)
-			{
-			}
-			if (!ok) v = c * 112 * s.strumlineScale.x; // respaldo (si getXPos no fuera accesible)
-			mcColXs[c] = v;
+			var f = "b" + c;
+			var key = name + ":" + f;
+			var old = mlTw.get(key);
+			if (old != null) old.cancel();
+
+			Reflect.setField(L, f, -1.0);
+			var vals = {};
+			Reflect.setField(vals, f, 1.0);
+			mlTw.set(key, FlxTween.tween(L, vals, half, {type: 4, ease: FlxEase.sineInOut, startDelay: c * 0.573 * half}));
 			c += 1;
 		}
 	}
 
-	// onda triangular (-1..1)
-	function mcTri(x)
+	function mlUndoLane(s, L, recs)
 	{
-		return (2 / Math.PI) * Math.asin(Math.sin(x));
-	}
+		if (s == null || L == null) return;
+		if (L.ax != 0) s.x -= L.ax;
+		if (L.ay != 0) s.y -= L.ay;
+		L.ax = 0.0;
+		L.ay = 0.0;
+		L.pa = 1.0;
 
-	// Calcula el offset (mcOx, mcOy) en pixeles para una columna. dist = distancia en px hasta el receptor (0 para receptores).
-	// Y no depende de la distancia (ya viene en mcBaseOy); X suma zigzag y tanWave, que si dependen de ella.
-	function mcCalc(idx, dist)
-	{
-		var ox = mcBaseOx[idx];
-
-		if (mcZig[idx] != 0)
-			ox += mcZig[idx] * mcZigAmp[idx] * mcTri(dist * 0.0065 + (idx % 4) * 0.8);
-
-		if (mcTan[idx] != 0)
+		var c = 0;
+		while (c < 4)
 		{
-			var tv = Math.tan(mcTime * 1.5 + (idx % 4) * 0.25 + dist * 0.006);
-			if (tv > 2) tv = 2;
-			if (tv < -2) tv = -2;
-			ox += mcTan[idx] * mcTanAmp[idx] * tv;
+			if (L.ry[c] != 0 && c < recs.length && recs[c] != null) recs[c].y -= L.ry[c];
+			L.ry[c] = 0.0;
+			c += 1;
 		}
-
-		mcOx = ox;
-		mcOy = mcBaseOy[idx];
+		L.waveOn = false;
 	}
 
-	function mcStrum(game, lane)
+	function mlUndo(game)
 	{
-		return (lane == 0) ? game.opponentStrumline : game.playerStrumline;
-	}
+		if (!mlPlaced || game == null || mlOpp == null) return;
 
-	function mcDist(strumTime, strum)
-	{
-		var d = (strumTime - Conductor.instance.songPosition) * 0.45 * strum.scrollSpeed; // Constants.PIXELS_PER_MS = 0.45
-		return (d < 0) ? 0.0 : d;
-	}
+		mlUndoLane(game.opponentStrumline, mlOpp, mlOppRecs);
+		mlUndoLane(game.playerStrumline, mlPlr, mlPlrRecs);
 
-	// ---------------- init / reset ----------------
-	function mcInit(game)
-	{
-		mcResetRaw();
-		mcTweens = [];
-		mcInIdle = true;
-		mcDirty = true;
-
-		var i = 0;
-		while (i < 8)
+		var c = 0;
+		while (c < mlPlrRecs.length)
 		{
-			mcAlphaNow[i] = 1.0;
-			mcScaleNow[i] = 1.0;
-			mcScaleApplied[i] = 1.0;
-			mcShx[i] = 0.0;
-			mcShy[i] = 0.0;
-			i += 1;
+			var r = mlPlrRecs[c];
+			if (r != null) r.scale.set(mlPlrRecScale, mlPlrRecScale);
+			c += 1;
 		}
-
-		mcQueueSong(game);
 	}
 
-	// Todo lo que saygex.script hacia con Modchart.* en onCreatePost / onBeatHit / onUpdatePost.
-	function mcQueueSong(game)
+	function mlHidePre(game)
 	{
-		// if (game.currentDifficulty == "hard") mcSet("tanWave", .35, mcPlr, null);
+		if (game == null || mlPlaced) return;
 
-		mcSet("alpha", 0, mcOpp, null);
+		if (game.playerStrumline != null && game.playerStrumline.alpha != 0) game.playerStrumline.alpha = 0;
+		if (game.opponentStrumline != null && game.opponentStrumline.alpha != 0) game.opponentStrumline.alpha = 0;
+	}
 
+	function mlInit(game)
+	{
+		mlUndo(game);
+
+		for (k in mlTw.keys())
+		{
+			var t = mlTw.get(k);
+			if (t != null) t.cancel();
+		}
+		mlTw = new StringMap();
+
+		useModchart = !Save.instance.modOptions["lowQuality"];
+
+		mlOpp = mlLane();
+		mlPlr = mlLane();
+		mlStage = 0;
+		mlInIdle = true;
+		mlPlrNoteScale = 1.0;
+		mlTriggers = [31, 37, videoBeat, 284, 384];
+
+		mlOpp.alpha = 0.0;
 		if (useModchart)
 		{
-			mcSet("tipToe", 0.1, mcOpp, null);
-			mcSetField("tipToe", "amplitude", 13, mcOpp, null);
-			mcSet("zigzag", 0.05, mcOpp, null);
-
-			mcSet("tipsy", .25, mcOpp, null);
-			mcSetField("tipsy", "amplitude", 30, mcOpp, null);
-			mcSetField("tipsy", "period", 1, mcOpp, null);
-
-			mcSet("xOffset", -200, mcOpp, null);
-			mcSet("yOffset", dadYYPos - 50, mcOpp, null);
-			mcEase("alpha", 0.5, 31, .5, FlxEase.quadOut, mcOpp, null, true);
-			mcEase("yOffset", dadYYPos, 31, .5, FlxEase.circOut, mcOpp, null, true);
+			mlOpp.ox = -200;
+			mlOpp.oy = dadYYPos - 50;
+			mlOpp.bobAmp = 7.5;
+			mlBob("opp", mlOpp, 1.309);
 		}
 
-		var col = 0;
-		while (col < 4)
+		mlPlr.alpha = 0.0;
+		mlPlr.ox = 50;
+		mlPlr.oy = 50;
+
+		mlHidePre(game);
+
+		if (mlPostFn == null)
 		{
-			mcSet("shake", 0.05, mcOpp, [col]);
-
-			mcSet("yOffset", 50, mcPlr, [col]);
-			mcSet("alpha", 0, mcPlr, [col]);
-
-			mcEase("alpha", 1, 37 + 0.2 * col, 1, FlxEase.quadOut, mcPlr, [col], true);
-			mcEase("yOffset", 0, 37 + 0.2 * col, 1, FlxEase.circOut, mcPlr, [col], true);
-			col += 1;
+			mlPostFn = function() {
+				mlPost();
+			};
+			FlxG.signals.postUpdate.add(mlPostFn);
 		}
-
-		mcSet("xOffset", 50, mcPlr, null);
-		mcEase("xOffset", 0, 37, 2, FlxEase.circOut, mcPlr, null, true);
-
-		// beat 223: el carril del jugador se oculta durante el video
-		mcEase("alpha", 0, videoBeat, 1, FlxEase.circOut, mcPlr, null, true);
-
-		// beat 284: vuelve
-		mcEase("alpha", 1, 284, 1.75, FlxEase.sineInOut, mcPlr, null, true);
-
-		// beat 384: se va hacia arriba/abajo
-		var whereWeGo = AmScroll.isDown() ? 30 : -30;
-		mcEase("alpha", 0, 384, 1, FlxEase.sineIn, mcPlr, null, true);
-		mcEase("yOffset", whereWeGo, 384, 1, FlxEase.sineIn, mcPlr, null, true);
 	}
 
-	// ---------------- colocacion del campo del oponente ----------------
-	// Original: opponentStrumline.changeMode(true, 1.15); downScroll = true; camera = camGame;
-	//           se saca del PlayState y se mete al stage con zIndex = dad.zIndex - 2.
-	function mcPlace(game)
+	function mlPlace(game)
 	{
-		if (game == null || game.currentStage == null) return;
+		if (game == null || game.currentStage == null || mlOpp == null) return;
 
 		var stage = game.currentStage;
 		var s = game.opponentStrumline;
 		var dad = stage.getDad();
 		if (s == null || dad == null) return;
 
-		if (!mcPlaced)
+		var c = 0;
+		mlPlrRecs = [];
+		mlOppRecs = [];
+		while (c < 4)
 		{
-			// posiciones base de los receptores del jugador (antes de tocar nada)
-			var p = game.playerStrumline;
-			var c = 0;
-			while (c < 4)
-			{
-				var pr = p.getByIndex(c);
-				mcBaseRX[4 + c] = pr.x;
-				mcBaseRY[4 + c] = pr.y;
-				mcBaseRS[4 + c] = pr.scale.x;
-				c += 1;
-			}
+			mlPlrRecs[c] = game.playerStrumline.getByIndex(c);
+			mlOppRecs[c] = s.getByIndex(c);
+			c += 1;
+		}
+
+		if (!mlPlaced)
+		{
+			mlPlrRecScale = mlPlrRecs[0].scale.x;
 
 			s.isDownscroll = true;
-			s.strumlineScale.set(oppFieldScale, oppFieldScale); // reescala receptores y espaciado
+			s.strumlineScale.set(oppFieldScale, oppFieldScale);
 
 			game.remove(s, true);
 			stage.add(s);
 			s.cameras = [game.camGame];
 
-			// el fondo de la strumline (pref. de opacidad) no tiene sentido dentro del stage
 			var m = 0;
 			while (m < s.members.length)
 			{
@@ -1463,264 +1522,283 @@ class DadBattleAnimania extends Song
 				if (mem != null && Std.isOfType(mem, FunkinSprite)) mem.visible = false;
 				m += 1;
 			}
+
 			s.showNotesplash = !hideOpponentCovers;
 
-			mcOppIncomingFn = function(n) {
-				mcOnIncoming(n, 0);
+			mlOppIncomingFn = function(n) {
+				mlOnIncoming(n, 0);
 			};
-			mcPlrIncomingFn = function(n) {
-				mcOnIncoming(n, 1);
+			mlPlrIncomingFn = function(n) {
+				mlOnIncoming(n, 1);
 			};
-			s.onNoteIncoming.add(mcOppIncomingFn);
-			game.playerStrumline.onNoteIncoming.add(mcPlrIncomingFn);
+			s.onNoteIncoming.add(mlOppIncomingFn);
+			game.playerStrumline.onNoteIncoming.add(mlPlrIncomingFn);
 		}
+
+		s.visible = useModchart;
 
 		s.zIndex = dad.zIndex - 2;
 		s.x = dad.x + dad.width * 0.6 - s.width * 0.5 + oppAnchorDX;
 		s.y = dad.y + dad.height * 0.3 + oppAnchorDY;
+		mlOpp.ax = 0.0;
+		mlOpp.ay = 0.0;
 		stage.refresh();
 
-		if (!mcBaseReady)
-		{
-			var c2 = 0;
-			while (c2 < 4)
-			{
-				var r = s.getByIndex(c2);
-				mcBaseRX[c2] = r.x;
-				mcBaseRY[c2] = r.y;
-				mcBaseRS[c2] = r.scale.x;
-				c2 += 1;
-			}
-			mcBaseReady = true;
-		}
+		mlPlaced = true;
 
-		mcPlaced = true;
+		mlApply(s, mlOpp, mlOppRecs);
+		mlApply(game.playerStrumline, mlPlr, mlPlrRecs);
 	}
 
-	// Nota recien creada: aplicarle ya el estado actual para que no haya un frame "sin modchart".
-	function mcOnIncoming(n, lane)
+	function mlOnIncoming(n, lane)
 	{
-		if (n == null || n.noteData == null) return;
+		if (n == null) return;
+
+		var L = (lane == 0) ? mlOpp : mlPlr;
+		if (L == null) return;
+
+		n.alpha = L.alpha;
+		var h = n.holdNoteSprite;
+		if (h != null) h.alpha = L.alpha;
+
+		n.yOffset = L.offs[n.direction % 4];
+		if (h != null) h.yOffset = L.offs[n.direction % 4];
+
+		if (lane == 1 && mlPlrNoteScale != 1.0) n.scale.set(n.scale.x * mlPlrNoteScale, n.scale.y * mlPlrNoteScale);
+	}
+
+	function mlApply(s, L, recs)
+	{
+		if (s == null) return;
+
+		if (s.alpha != L.alpha) s.alpha = L.alpha;
+		if (L.alpha <= 0.0) return;
+
+		if (L.ox != L.ax)
+		{
+			s.x += L.ox - L.ax;
+			L.ax = L.ox;
+		}
+		if (L.oy != L.ay)
+		{
+			s.y += L.oy - L.ay;
+			L.ay = L.oy;
+		}
+
+		var amp = L.bobAmp;
+		if (amp == 0 && !L.waveOn) return;
+
+		var offs = L.offs;
+		offs[0] = amp * L.b0;
+		offs[1] = amp * L.b1;
+		offs[2] = amp * L.b2;
+		offs[3] = amp * L.b3;
+		L.waveOn = (amp != 0);
+
+		var ry = L.ry;
+		var c = 0;
+		while (c < 4)
+		{
+			var d = offs[c] - ry[c];
+			if (d != 0)
+			{
+				recs[c].y += d;
+				ry[c] = offs[c];
+			}
+			c += 1;
+		}
+
+		var nm = s.notes.members;
+		var nl = nm.length;
+		var i = 0;
+		while (i < nl)
+		{
+			var n = nm[i];
+			i += 1;
+			if (n != null && n.alive) n.yOffset = offs[n.direction % 4];
+		}
+
+		var hm = s.holdNotes.members;
+		var hl = hm.length;
+		i = 0;
+		while (i < hl)
+		{
+			var h = hm[i];
+			i += 1;
+			if (h != null && h.alive) h.yOffset = offs[h.noteDirection % 4];
+		}
+	}
+
+	function mlPost()
+	{
+		if (!mlPlaced) return;
 
 		var game = PlayState.instance;
 		if (game == null) return;
 
-		var s = mcStrum(game, lane);
-		var idx = lane * 4 + (n.noteData.getDirection() % 4);
-
-		var f = mcScaleApplied[idx];
-		if (f != 1.0) n.scale.set(n.scale.x * f, n.scale.y * f);
-
-		mcCalc(idx, mcDist(n.strumTime, s));
-		n.yOffset = mcOy;
-		n.alpha = mcAlphaNow[idx];
-
-		var h = n.holdNoteSprite;
-		if (h != null)
-		{
-			h.yOffset = mcOy;
-			h.alpha = mcAlphaNow[idx];
-		}
+		mlPostLane(game.opponentStrumline, mlOpp);
+		mlPostLane(game.playerStrumline, mlPlr);
 	}
 
-	// ---------------- por frame: ANTES de Strumline.update (desde onUpdate) ----------------
-	function mcPre(game, elapsed)
+	function mlPostLane(s, L)
 	{
-		if (!mcPlaced) return;
-
-		mcUpdateTweens();
-		mcRefresh();
-		mcOpponentIdle(game);
-		mcOpponentHoldDrain(game, elapsed);
-
-		var lane = 0;
-		while (lane < 2)
-		{
-			var s = mcStrum(game, lane);
-			if (s == null)
-			{
-				lane += 1;
-				continue;
-			}
-
-			var nm = s.notes.members;
-			var nlen = nm.length;
-			var i = 0;
-			while (i < nlen)
-			{
-				var n = nm[i];
-				i += 1;
-				if (n == null || !n.alive || n.noteData == null) continue;
-
-				var idx = lane * 4 + (n.noteData.getDirection() % 4);
-
-				var ratio = mcScaleNow[idx] / mcScaleApplied[idx];
-				if (ratio != 1.0) n.scale.set(n.scale.x * ratio, n.scale.y * ratio);
-
-				n.yOffset = mcBaseOy[idx];
-				n.alpha = mcAlphaNow[idx];
-			}
-
-			var hm = s.holdNotes.members;
-			var hlen = hm.length;
-			var j = 0;
-			while (j < hlen)
-			{
-				var h = hm[j];
-				j += 1;
-				if (h == null || !h.alive) continue;
-
-				var hidx = lane * 4 + (h.noteDirection % 4);
-				h.yOffset = mcBaseOy[hidx];
-				if (!h.missedNote) h.alpha = mcAlphaNow[hidx];
-			}
-
-			lane += 1;
-		}
-
-		var k = 0;
-		while (k < 8)
-		{
-			mcScaleApplied[k] = mcScaleNow[k];
-			k += 1;
-		}
-	}
-
-	// ---------------- por frame: DESPUES de Strumline.update (FlxG.signals.postUpdate) ----------------
-	function mcPost()
-	{
-		var game = PlayState.instance;
-		if (game == null || !mcPlaced || game.currentStage == null) return;
+		if (s == null || L == null || !L.waveOn || L.alpha <= 0.0) return;
 
 		var songPos = Conductor.instance.songPosition;
-
-		var lane = 0;
-		while (lane < 2)
+		var hm = s.holdNotes.members;
+		var hl = hm.length;
+		var i = 0;
+		while (i < hl)
 		{
-			var s = mcStrum(game, lane);
-			if (s == null)
-			{
-				lane += 1;
-				continue;
-			}
+			var h = hm[i];
+			i += 1;
+			if (h == null || !h.alive) continue;
 
-			var sx = s.strumlineScale.x;
-			mcFillColX(s);
-
-			// receptores
-			if (mcBaseReady)
-			{
-				var c = 0;
-				while (c < 4)
-				{
-					var r = s.getByIndex(c);
-					var ridx = lane * 4 + c;
-					mcCalc(ridx, 0);
-					r.x = mcBaseRX[ridx] + mcOx;
-					r.y = mcBaseRY[ridx] + mcOy;
-					r.alpha = mcAlphaNow[ridx];
-					r.scale.set(mcBaseRS[ridx] * mcScaleNow[ridx], mcBaseRS[ridx] * mcScaleNow[ridx]);
-					c += 1;
-				}
-			}
-
-			// notas: X (la Y ya la maneja yOffset)
-			var nm = s.notes.members;
-			var nlen = nm.length;
-			var i = 0;
-			while (i < nlen)
-			{
-				var n = nm[i];
-				i += 1;
-				if (n == null || !n.alive || n.noteData == null) continue;
-
-				var col = n.noteData.getDirection() % 4;
-				var idx = lane * 4 + col;
-				mcCalc(idx, mcDist(n.strumTime, s));
-
-				// misma formula que Strumline.buildNoteSprite (X de columna = getXPos, no una separacion fija)
-				n.x = s.x + mcColXs[col] - (n.width - 104) / 2 - 2 + mcOx;
-			}
-
-			// sustains (rectos: se mueven enteros, no se curvan)
-			var hm = s.holdNotes.members;
-			var hlen = hm.length;
-			var j = 0;
-			while (j < hlen)
-			{
-				var h = hm[j];
-				j += 1;
-				if (h == null || !h.alive) continue;
-
-				var hcol = h.noteDirection % 4;
-				var hidx = lane * 4 + hcol;
-				mcCalc(hidx, mcDist(h.strumTime, s));
-
-				h.x = s.x + mcColXs[hcol] + 52 - h.width / 2 + mcOx;
-
-				// Mientras se sostiene, Strumline NO suma yOffset: se recalcula absoluto.
-				if (h.hitNote && !h.missedNote && songPos > h.strumTime && h.sustainLength > 0)
-				{
-					var by = s.y + 28.6 + 52; // y - INITIAL_OFFSET + STRUMLINE_SIZE / 2
-					if (s.isDownscroll) by -= h.height;
-					h.y = by + mcOy;
-				}
-			}
-
-			// covers del oponente
-			if (lane == 0 && hideOpponentCovers)
-			{
-				var q = 0;
-				while (q < s.noteHoldCovers.members.length)
-				{
-					var cv = s.noteHoldCovers.members[q];
-					if (cv != null) cv.visible = false;
-					q += 1;
-				}
-			}
-
-			lane += 1;
+			if (h.hitNote && !h.missedNote && songPos > h.strumTime && h.sustainLength > 0) h.y += L.offs[h.noteDirection % 4];
 		}
 	}
 
-	// ---------------- reaccion a las notas del oponente ----------------
-	// Port de onUpdatePost (inIdle) de saygex.script
-	function mcOpponentIdle(game)
+	function mlApplyPulse()
 	{
-		if (!useModchart || mcInIdle) return;
+		var L = mlPlr;
+		if (L.pulse == L.pa) return;
+
+		L.pa = L.pulse;
+		var sc = mlPlrRecScale * L.pulse;
+		var c = 0;
+		while (c < mlPlrRecs.length)
+		{
+			mlPlrRecs[c].scale.set(sc, sc);
+			c += 1;
+		}
+	}
+
+	function mlUpdate(game, elapsed)
+	{
+		if (!mlPlaced)
+		{
+			mlHidePre(game);
+			return;
+		}
+		if (game.currentStage == null) return;
+
+		if (useModchart)
+		{
+			mlOpponentIdle(game);
+			mlDrainHolds(game, elapsed);
+		}
+
+		mlApply(game.opponentStrumline, mlOpp, mlOppRecs);
+		mlApply(game.playerStrumline, mlPlr, mlPlrRecs);
+		mlApplyPulse();
+	}
+
+	function mlBeat(beat)
+	{
+		if (!mlPlaced) return;
+
+		var bl = Conductor.instance.beatLengthMs / 1000;
+
+		while (mlStage < mlTriggers.length && beat >= mlTriggers[mlStage])
+		{
+			mlFire(mlStage, bl);
+			mlStage += 1;
+		}
+
+		if (beat > 283 && beat % 2 == 0)
+		{
+			mlPlr.pulse = 1.1;
+			mlTo("plr", mlPlr, "pulse", 0.95, bl, FlxEase.sineOut, 0);
+		}
+	}
+
+	function mlFire(stage, bl)
+	{
+		if (stage == 0)
+		{
+			if (useModchart)
+			{
+				mlTo("opp", mlOpp, "alpha", 0.5, 0.5 * bl, FlxEase.quadOut, 0);
+				mlTo("opp", mlOpp, "oy", dadYYPos, 0.5 * bl, FlxEase.circOut, 0);
+			}
+		}
+		else if (stage == 1)
+		{
+			mlTo("plr", mlPlr, "alpha", 1, 1.6 * bl, FlxEase.quadOut, 0);
+			mlTo("plr", mlPlr, "oy", 0, 1.6 * bl, FlxEase.circOut, 0);
+			mlTo("plr", mlPlr, "ox", 0, 2 * bl, FlxEase.circOut, 0);
+		}
+		else if (stage == 2)
+		{
+			mlTo("plr", mlPlr, "alpha", 0, bl, FlxEase.circOut, 0);
+		}
+		else if (stage == 3)
+		{
+			mlTo("plr", mlPlr, "alpha", 1, 1.75 * bl, FlxEase.sineInOut, 0);
+			mlPlrNoteScale = 0.95;
+		}
+		else if (stage == 4)
+		{
+			var whereWeGo = AmScroll.isDown() ? 30 : -30;
+			mlTo("plr", mlPlr, "alpha", 0, bl, FlxEase.sineIn, 0);
+			mlTo("plr", mlPlr, "oy", whereWeGo, bl, FlxEase.sineIn, 0);
+		}
+	}
+
+	function mlVideoEnd()
+	{
+		if (mlPlr == null) return;
+
+		mlBob("plr", mlPlr, 0.873);
+		mlTo("plr", mlPlr, "bobAmp", 10.4, 6.5, FlxEase.circOut, 0.5);
+	}
+
+	function mlHit(dir)
+	{
+		var xx = -200;
+		var yy = dadYYPos;
+
+		if (dir == 0) xx -= 25;
+		else if (dir == 1) yy += 20;
+		else if (dir == 2) yy -= 45;
+		else if (dir == 3) xx += 35;
+
+		mlInIdle = false;
+		mlTo("opp", mlOpp, "ox", xx, 0.1, FlxEase.circOut, 0);
+		mlTo("opp", mlOpp, "oy", yy, 0.1, FlxEase.circOut, 0);
+	}
+
+	function mlOpponentIdle(game)
+	{
+		if (mlInIdle) return;
 
 		var dad = game.currentStage.getDad();
 		if (dad == null || dad.animation.curAnim == null) return;
 
 		if (dad.animation.curAnim.name.indexOf("idle") != -1)
 		{
-			mcInIdle = true;
-			var now = Conductor.instance.songPosition;
-			mcEase("xOffset", -200, now, 250, FlxEase.circOut, mcOpp, null, false);
-			mcEase("yOffset", dadYYPos + (dad.idleSuffix == "" ? 0 : -50), now, 250, FlxEase.circOut, mcOpp, null, false);
-
-			mcSet("shake", 0.05, mcOpp, null);
+			mlInIdle = true;
+			mlTo("opp", mlOpp, "ox", -200, 0.25, FlxEase.circOut, 0);
+			mlTo("opp", mlOpp, "oy", dadYYPos + (dad.idleSuffix == "" ? 0 : -50), 0.25, FlxEase.circOut, 0);
 		}
 	}
 
-	// Parte "sus" de onOpponentNoteHit: drenaje de vida mientras el oponente sostiene un hold.
-	function mcOpponentHoldDrain(game, elapsed)
+	function mlDrainHolds(game, elapsed)
 	{
-		if (!useModchart) return;
-
-		var s = game.opponentStrumline;
+		var hm = game.opponentStrumline.holdNotes.members;
+		var n = hm.length;
 		var i = 0;
-		while (i < s.holdNotes.members.length)
+		while (i < n)
 		{
-			var h = s.holdNotes.members[i];
+			var h = hm[i];
 			i += 1;
 			if (h == null || !h.alive) continue;
 
-			if (h.hitNote && !h.missedNote && h.sustainLength > 0) mcDrainHealth(game, 0.075 * elapsed);
+			if (h.hitNote && !h.missedNote && h.sustainLength > 0) mlDrainHealth(game, 0.075 * elapsed);
 		}
 	}
 
-	function mcDrainHealth(game, amount)
+	function mlDrainHealth(game, amount)
 	{
 		if (game.health <= .1) return;
 
@@ -1728,8 +1806,6 @@ class DadBattleAnimania extends Song
 		var mult = (bf != null && bf.idleSuffix != "") ? Math.max(1, game.health * .85) : 1;
 		game.health -= amount * mult;
 	}
-
-	// ---------------- fin del modchart ----------------
 
 	var refShader = "
 	#pragma header
@@ -1806,9 +1882,6 @@ class DadBattleAnimania extends Song
 		gl_FragColor = vec4(refl.rgb * a, a);
 	}";
 
-	// ------------------------------------------------------------------
-	// Shader "fuckingGrad" de saygex.script (barra de peligro). GLSL identico al original.
-	// ------------------------------------------------------------------
 	var dangerGrad = "
 	#pragma header
 
@@ -1832,9 +1905,6 @@ class DadBattleAnimania extends Song
 		gl_FragColor = vec4(gradientColor * a, a);
 	}";
 
-	// ------------------------------------------------------------------
-	// Shader "godlight" de saygex.script (rayos de luz). GLSL identico al original.
-	// ------------------------------------------------------------------
 	var godLight = "
 	#pragma header
 
@@ -1948,17 +2018,6 @@ class DadBattleAnimania extends Song
 		}
 	}
 
-	// ------------------------------------------------------------------
-	// Barra de peligro (port de suckBar + fuckingGrad)
-	//
-	// Usa el mismo asset que el script original ("ui/healthbar/WHITEBAR"), sin escalar, asi que
-	// respeta la curva. En V-Slice no existe healthBar.leftBar, asi que se ancla a:
-	//   1) redBar de CurvedHealthBarModule (si el modulo esta activo en este stage), o
-	//   2) la healthBar vanilla (fallback).
-	//
-	// Se crea de forma perezosa desde onUpdate porque el modulo construye sus barras en
-	// onStateChangeEnd, es decir DESPUES de que corre el onCreate de este Song.
-	// ------------------------------------------------------------------
 	function getCurvedRedBar()
 	{
 		var mod = ModuleHandler.getModule("CurvedHealthBarModule");
@@ -1973,17 +2032,16 @@ class DadBattleAnimania extends Song
 
 		var curved = getCurvedRedBar();
 
-		// El modulo todavia no armo sus barras: esperar un momento antes de caer al fallback vanilla.
 		if (curved == null && shaderTime < 1.0 && ModuleHandler.getModule("CurvedHealthBarModule") != null) return;
 
 		dangerBarTried = true;
 		dangerSource = curved;
 
 		dangerBar = new FunkinSprite();
-		dangerBar.loadGraphic(Paths.image("ui/healthbar/WHITEBAR")); // mismo asset que suckBar original
+		dangerBar.loadGraphic(Paths.image("ui/healthbar/WHITEBAR"));
 		dangerBar.scrollFactor.set(0, 0);
 		dangerBar.cameras = [game.camHUD];
-		dangerBar.zIndex = 805; // igual que el original (bg del modulo = 804, iconos = 850)
+		dangerBar.zIndex = 805;
 
 		dangerShader = new FlxRuntimeShader(dangerGrad);
 		dangerShader.setFloat("cutoff", 0.5);
@@ -2001,17 +2059,15 @@ class DadBattleAnimania extends Song
 		trySetupDangerBar(game);
 		if (dangerBar == null || dangerShader == null) return;
 
-		// healthBar.value == healthLerp (PlayState.healthLerp es privado, value es publico)
 		var hv = game.healthBar.value;
 
 		dangerPulse += elapsed * hv;
 
-		// attachFunc original: x = leftBar.x, y = leftBar.y - 2
 		if (dangerSource != null)
 		{
 			dangerBar.x = dangerSource.x;
 			dangerBar.y = dangerSource.y;
-			dangerBar.flipY = dangerSource.flipY; // el modulo ya lo ajusta a downscroll/mobile
+			dangerBar.flipY = dangerSource.flipY;
 		}
 		else
 		{
@@ -2025,14 +2081,6 @@ class DadBattleAnimania extends Song
 		dangerShader.setFloat("gradientAlpha", Math.cos(FlxEase.sineInOut(dangerPulse)));
 	}
 
-	// ------------------------------------------------------------------
-	// Rayos de luz (port de godRaysSpr + godlight)
-	//
-	// - `blend = 0` era BlendMode.ADD.
-	// - Se registra como StageProp con nombre para que Stage.onDestroy lo limpie solo.
-	// - `zoomFactor` no existe en V-Slice: se emula en applyGodRaysZoomFactor() (ver abajo).
-	//   Por eso vuelve a ser el sprite original: FlxG.width * 1.5 de ancho, scrollFactor (1, 0).
-	// ------------------------------------------------------------------
 	function setupGodRays(game)
 	{
 		if (!Save.instance.modOptions["shaders"]) return;
@@ -2044,8 +2092,8 @@ class DadBattleAnimania extends Song
 		godRaysSpr.screenCenter();
 		godRaysSpr.scrollFactor.set(godRaysScrollX, godRaysScrollY);
 
-		var holyGrad = stage.getNamedProp("holygrad"); // prop propio de tu stage, puede no existir
-		if (holyGrad != null) holyGrad.alpha = 0; // el original lo dejaba en 0 al inicio
+		var holyGrad = stage.getNamedProp("holygrad");
+		if (holyGrad != null) holyGrad.alpha = 0;
 		godRaysSpr.zIndex = (holyGrad != null) ? holyGrad.zIndex - 2 : stage.getDad().zIndex - 3;
 
 		godRaysShader = new FlxRuntimeShader(godLight);
@@ -2060,7 +2108,6 @@ class DadBattleAnimania extends Song
 		stage.addProp(godRaysSpr, "godRays");
 		stage.refresh();
 
-		// Guardar el estado base DESPUES de addProp (Stage.preAdd le suma su propio x/y).
 		godRaysBaseX = godRaysSpr.x;
 		godRaysBaseY = godRaysSpr.y;
 		godRaysBaseScaleX = godRaysSpr.scale.x;
@@ -2071,20 +2118,6 @@ class DadBattleAnimania extends Song
 		applyGodRaysZoomFactor(game);
 	}
 
-	// ------------------------------------------------------------------
-	// zoomFactor manual.
-	//
-	// Codename (FunkinSprite.prepareDrawMatrix) escala la matriz de dibujo alrededor del centro
-	// de la camara con:  s = max(0, (1 - zoomFactor) / camZoom + zoomFactor)
-	// Como despues la camara aplica su propio zoom, el resultado en pantalla es escala s * camZoom:
-	//   zoomFactor = 1 -> s = 1        -> zoom normal
-	//   zoomFactor = 0 -> s = 1/zoom   -> el zoom se cancela (tamano y posicion fijos en pantalla)
-	//
-	// Aqui se hace igual pero tocando scale/x/y cada frame:
-	//   1) tamano  = tamano base * s
-	//   2) el centro del sprite (en coordenadas de camara, antes del zoom) se aleja/acerca del
-	//      centro de la camara con el mismo factor s:  c' = (c - o) * s + o
-	// ------------------------------------------------------------------
 	function applyGodRaysZoomFactor(game)
 	{
 		if (godRaysSpr == null) return;
@@ -2095,14 +2128,12 @@ class DadBattleAnimania extends Song
 
 		var s = Math.max(0, (1 - godRaysZoomFactor) / zoom + godRaysZoomFactor);
 
-		// tamano
 		godRaysSpr.scale.set(godRaysBaseScaleX * s, godRaysBaseScaleY * s);
 		godRaysSpr.updateHitbox();
 
 		var w = godRaysBaseW * s;
 		var h = godRaysBaseH * s;
 
-		// centro del sprite en pantalla (antes del zoom de camara), respetando scrollFactor
 		var cx = godRaysBaseX + godRaysBaseW * 0.5 - cam.scroll.x * godRaysScrollX;
 		var cy = godRaysBaseY + godRaysBaseH * 0.5 - cam.scroll.y * godRaysScrollY;
 
@@ -2112,49 +2143,137 @@ class DadBattleAnimania extends Song
 		var nx = (cx - ox) * s + ox;
 		var ny = (cy - oy) * s + oy;
 
-		// esquina superior izquierda en pantalla -> posicion de mundo (Flixel volvera a restar scroll * scrollFactor)
 		godRaysSpr.x = nx - w * 0.5 + cam.scroll.x * godRaysScrollX;
 		godRaysSpr.y = ny - h * 0.5 + cam.scroll.y * godRaysScrollY;
 	}
 
-	// ------------------------------------------------------------------
-	// Video (port de vid / FunkinVideoSprite de saygex.script)
-	//
-	// - preload() -> precache() (hxvlc FlxVideoSprite).
-	// - camUnerHud no existe en V-Slice: el video va en camHUD con zIndex 0, o sea DEBAJO de
-	//   todo lo demas del HUD (health bar 800+, iconos 850, strumlines 1001), pero encima del juego.
-	// - FunkinVideoSprite solo existe con hxvlc; si falla se sigue sin video (ver startVideo).
-	// ------------------------------------------------------------------
-	function setupVideo(game)
+	function hookVideo(v, token, game)
 	{
+		v.bitmap.onFormatSetup.add(function() {
+			if (token != videoToken || vid != v) return;
+			v.setGraphicSize(FlxG.width, FlxG.height);
+			v.updateHitbox();
+			v.screenCenter();
+			videoReady = true;
+		});
+
+		v.bitmap.onEndReached.add(function() {
+			if (token != videoToken || vid != v || !videoPlaying) return;
+			onVideoEnd(game);
+		});
+
+		v.bitmap.onEncounteredError.add(function(msg) {
+			if (token != videoToken || vid != v) return;
+			trace("[DadBattleAnimania] error de video: " + msg);
+
+			if (videoStarted) onVideoEnd(game);
+			else destroyVideo(game);
+		});
+	}
+
+	function destroyVideo(game)
+	{
+		videoToken += 1;
+		videoReady = false;
+		videoPending = false;
+		videoPlaying = false;
+		videoPrecached = false;
+
+		if (vid == null) return;
+
+		var v = vid;
+		vid = null;
+
+		v.visible = false;
 		try
 		{
-			vid = new FunkinVideoSprite();
-			vid.bitmap.volumeAdjust = 0;
-			vid.load(Paths.videos("DADBATTLE_SOLOTIME_CUTSCENE.mkv"));
-			vid.scrollFactor.set();
-			vid.cameras = [game.camHUD];
-			vid.bitmap.onFormatSetup.add(function() {
-				vid.setGraphicSize(FlxG.width, FlxG.height);
-				vid.updateHitbox();
-				vid.screenCenter();
-			});
-			vid.precache();
-			vid.zIndex = 0;
-			vid.visible = false; // se muestra en el beat 223
-			game.add(vid);
-			game.refresh();
+			v.stop();
+		}
+		catch (e:Dynamic) {}
+		if (game != null) game.remove(v, true);
+		try
+		{
+			v.destroy();
+		}
+		catch (e:Dynamic) {}
+	}
+
+	function destroyVideoLater(v, game)
+	{
+		v.visible = false;
+		try
+		{
+			v.stop();
+		}
+		catch (e:Dynamic) {}
+		if (game != null) game.remove(v, true);
+
+		new FlxTimer().start(0.05, function(_) {
+			try
+			{
+				v.destroy();
+			}
+			catch (e:Dynamic) {}
+		});
+	}
+
+	function setupVideo(game)
+	{
+		destroyVideo(game);
+
+		var token = videoToken;
+		var path = Paths.videos("DADBATTLE_SOLOTIME_CUTSCENE.mkv");
+
+		var v = new FunkinVideoSprite();
+		v.bitmap.volumeAdjust = 0;
+		v.scrollFactor.set();
+		v.cameras = [game.camHUD];
+		v.zIndex = 0;
+		v.visible = false;
+		v.antialiasing = true;
+
+		vid = v;
+		hookVideo(v, token, game);
+
+		var ok = false;
+		try
+		{
+			ok = v.precache(path);
 		}
 		catch (e:Dynamic)
 		{
-			trace("[DadBattleAnimania] No se pudo crear el video: " + e);
-			vid = null;
+			ok = false;
 		}
+		videoPrecached = ok;
+
+		if (!ok)
+		{
+			try
+			{
+				ok = v.load(path);
+			}
+			catch (e:Dynamic)
+			{
+				ok = false;
+			}
+		}
+
+		if (!ok)
+		{
+			vid = null;
+			videoToken += 1;
+			try
+			{
+				v.destroy();
+			}
+			catch (e:Dynamic) {}
+			return;
+		}
+
+		game.add(v);
+		game.refresh();
 	}
 
-	// Oculta/muestra el HUD de vida (equivale a healthBarGroup.visible del original, que en V-Slice no existe).
-	// Se usa alpha y no visible porque tanto CurvedHealthBarModule como el propio PlayState
-	// manejan .visible de estas barras; asi se restaura exactamente lo que habia.
 	function setHudHidden(game, hidden)
 	{
 		if (hidden)
@@ -2207,18 +2326,38 @@ class DadBattleAnimania extends Song
 		if (videoStarted) return;
 		videoStarted = true;
 
-		// Sin video (hxvlc ausente / error): los efectos del final del video arrancan igual.
 		if (vid == null)
 		{
 			onVideoEnd(game);
 			return;
 		}
 
-		vid.stop();
-		vid.visible = true;
-		vid.bitmap.time = 0;
 		vid.bitmap.volumeAdjust = 0;
-		vid.play();
+		if (videoPrecached) vid.resume();
+		else vid.play();
+
+		videoWait = 0.0;
+		videoPlayTime = 0.0;
+		videoStallTime = 0.0;
+
+		if (videoReady)
+		{
+			showVideo(game);
+		}
+		else
+		{
+			videoPending = true;
+		}
+	}
+
+	function showVideo(game)
+	{
+		videoPending = false;
+		videoPlaying = true;
+		videoPlayTime = 0.0;
+		videoStallTime = 0.0;
+
+		vid.visible = true;
 		vid.antialiasing = true;
 
 		setHudHidden(game, true);
@@ -2227,22 +2366,91 @@ class DadBattleAnimania extends Song
 		new FlxTimer().start(.15, function(_) {
 			if (game.vocals != null) game.vocals.playerVolume = 1;
 		});
+	}
 
-		vid.bitmap.onEndReached.add(function() {
-			onVideoEnd(game);
-		});
+	function updateVideo(game, elapsed)
+	{
+		if (!videoStarted)
+		{
+			var bt = Conductor.instance.currentBeatTime;
+			if (bt >= videoBeat && bt < videoEndBeat) startVideo(game);
+			return;
+		}
+
+		if (videoFinished) return;
+
+		if (videoPending)
+		{
+			if (vid == null)
+			{
+				onVideoEnd(game);
+				return;
+			}
+
+			if (videoReady)
+			{
+				showVideo(game);
+				return;
+			}
+
+			videoWait += elapsed;
+			if (videoWait >= videoMaxWait)
+			{
+				trace("[DadBattleAnimania] el video no se pudo mostrar a tiempo: se sigue sin video");
+				onVideoEnd(game);
+			}
+		}
+		else if (videoPlaying)
+		{
+			videoPlayTime += elapsed;
+			if (vid == null)
+			{
+				onVideoEnd(game);
+				return;
+			}
+
+			var stalled = false;
+			if (videoPlayTime > 1.0 && FlxG.sound.music != null && FlxG.sound.music.playing)
+			{
+				try
+				{
+					stalled = !vid.bitmap.isPlaying;
+				}
+				catch (e:Dynamic)
+				{
+					stalled = false;
+				}
+			}
+
+			if (stalled)
+			{
+				videoStallTime += elapsed;
+				if (videoStallTime >= videoStallMax)
+				{
+					trace("[DadBattleAnimania] el video se quedo sin reproducir: se cierra");
+					onVideoEnd(game);
+				}
+			}
+			else
+			{
+				videoStallTime = 0.0;
+			}
+		}
 	}
 
 	function onVideoEnd(game)
 	{
-		if (vid != null)
-		{
-			vid.stop();
-			vid.visible = false;
-			game.remove(vid, true);
-			vid.destroy();
-			vid = null;
-		}
+		if (videoFinished) return;
+		videoFinished = true;
+
+		var v = vid;
+		vid = null;
+		videoToken += 1;
+		videoPending = false;
+		videoPlaying = false;
+		videoReady = false;
+
+		if (v != null) destroyVideoLater(v, game);
 
 		game.camGame.flash();
 		setHudHidden(game, false);
@@ -2263,15 +2471,65 @@ class DadBattleAnimania extends Song
 
 		startGodRaysSequence(game);
 
-		// --- Modchart: lo que pasaba al terminar el video en saygex.script ---
-		var now = Conductor.instance.songPosition;
-		mcEase("tipsy", .65, now + 500, 6500, FlxEase.circOut, mcPlr, null, false);
-		// mcEase("tanWave", .65, now + 500, 6500, FlxEase.circOut, mcPlr, null, false);
-		mcSetField("tipsy", "amplitude", 16, mcPlr, null);
-		mcSetField("tipsy", "period", 2, mcPlr, null);
+		mlVideoEnd();
 	}
 
-	// Tweens de holygrad + godRays que en el original estaban dentro de onEndReached.
+	function resetRunState(game)
+	{
+		if (game == null || game.currentStage == null) return;
+
+		var stage = game.currentStage;
+
+		setHudHidden(game, false);
+		game.disableKeys = false;
+
+		videoStarted = false;
+		videoFinished = false;
+		videoWait = 0.0;
+		videoPlayTime = 0.0;
+		videoStallTime = 0.0;
+		setupVideo(game);
+
+		var bf = stage.getBoyfriend();
+		if (bf != null) bf.idleSuffix = "-angry";
+		var dad = stage.getDad();
+		if (dad != null) dad.idleSuffix = dadIdleBase;
+
+		var overlay = stage.getNamedProp("fgRedOverlay");
+		if (overlay != null)
+		{
+			FlxTween.cancelTweensOf(overlay);
+			if (overlayBaseAlpha != null) overlay.alpha = overlayBaseAlpha;
+		}
+
+		if (godRaysSpr != null)
+		{
+			FlxTween.cancelTweensOf(godRaysSpr);
+			godRaysSpr.alpha = 0;
+		}
+		var holyGrad = stage.getNamedProp("holygrad");
+		if (holyGrad != null)
+		{
+			FlxTween.cancelTweensOf(holyGrad);
+			holyGrad.alpha = 0;
+		}
+
+		if (chromChangeTween != null)
+		{
+			chromChangeTween.cancel();
+			chromChangeTween = null;
+		}
+		if (chromShader != null)
+		{
+			chromShader.setFloat("strength", .1);
+			game.camGame.filters = [new ShaderFilter(chromShader)];
+		}
+
+		dangerPulse = -300.0;
+
+		mlInit(game);
+	}
+
 	function startGodRaysSequence(game)
 	{
 		if (!Save.instance.modOptions["shaders"] || godRaysSpr == null) return;
@@ -2319,7 +2577,6 @@ class DadBattleAnimania extends Song
 
 		if (Save.instance.modOptions["shaders"])
 		{
-		// ---------------- reflejo de BF ----------------
 		if (realBf != null)
 		{
 			bfRef = CharacterDataParser.fetchCharacter(realBf.characterId);
@@ -2344,7 +2601,6 @@ class DadBattleAnimania extends Song
 			}
 		}
 
-		// ---------------- reflejo de DAD ----------------
 		if (realDad != null)
 		{
 			dadRef = CharacterDataParser.fetchCharacter(realDad.characterId);
@@ -2373,7 +2629,6 @@ class DadBattleAnimania extends Song
 		}
 		}
 
-		// ---------------- aberración cromática ----------------
 		if (Save.instance.modOptions["shaders"])
 		{
 			chromShader = new FlxRuntimeShader(Assets.getText(Paths.frag('chromaticAbberation')));
@@ -2381,30 +2636,26 @@ class DadBattleAnimania extends Song
 			game.camGame.filters = [new ShaderFilter(chromShader)];
 		}
 
-		// ---------------- shaders portados de saygex.script ----------------
-		// (la barra de peligro se crea en onUpdate, cuando CurvedHealthBarModule ya armo sus barras)
 		setupGodRays(game);
 
-		// ---------------- video (saygex.script) ----------------
+		var ov = game.currentStage.getNamedProp("fgRedOverlay");
+		overlayBaseAlpha = (ov != null) ? ov.alpha : null;
+		dadIdleBase = (realDad != null) ? realDad.idleSuffix : "";
+
 		videoStarted = false;
+		videoFinished = false;
 		hiddenHud = [];
+		dangerPulse = -300.0;
 		setupVideo(game);
 
-		// onCreatePost original: idle "-angry" hasta que termina el video
 		if (realBf != null) realBf.idleSuffix = "-angry";
 
-		// ---------------- modchart (saygex.script) ----------------
-		// Los valores/tweens se encolan aca; el campo del oponente se coloca en onCountdownStart.
-		mcInit(game);
-		mcPostFn = function() {
-			mcPost();
-		};
-		FlxG.signals.postUpdate.add(mcPostFn);
+		mlInit(game);
 	}
 
 	function onCountdownStart(event)
 	{
-		mcPlace(PlayState.instance);
+		mlPlace(PlayState.instance);
 	}
 
 	function onSongRetry(event)
@@ -2412,40 +2663,20 @@ class DadBattleAnimania extends Song
 		var game = PlayState.instance;
 		if (game == null) return;
 
-		// Reinicia valores y tweens del modchart; el campo se re-coloca en el proximo onCountdownStart.
-		mcInit(game);
+		resetRunState(game);
 	}
 
-	// Port de onOpponentNoteHit (parte "no sustain") de saygex.script
 	function onNoteHit(event)
 	{
-		if (!useModchart || !mcPlaced) return;
+		if (!useModchart || !mlPlaced) return;
 
 		var game = PlayState.instance;
 		if (game == null || game.currentStage == null) return;
 
-		// Este evento tambien salta con las notas del jugador: solo interesa el oponente.
 		if (game.opponentStrumline.notes.members.indexOf(event.note) == -1) return;
 
-		mcDrainHealth(game, 0.0125);
-
-		var xx = -200;
-		var yy = dadYYPos;
-
-		var dir = event.note.noteData.getDirection() % 4;
-		if (dir == 0) xx -= 25;
-		else if (dir == 1) yy += 20;
-		else if (dir == 2) yy -= 45;
-		else if (dir == 3) xx += 35;
-
-		mcInIdle = false;
-
-		mcSet("shake", 0.05, mcOpp, null);
-		mcSet("shake", 0.75, mcOpp, [dir]);
-
-		var now = Conductor.instance.songPosition;
-		mcEase("xOffset", xx, now, 100, FlxEase.circOut, mcOpp, null, false);
-		mcEase("yOffset", yy, now, 100, FlxEase.circOut, mcOpp, null, false);
+		mlDrainHealth(game, 0.0125);
+		mlHit(event.note.noteData.getDirection() % 4);
 	}
 
 	function onUpdate(event)
@@ -2455,7 +2686,8 @@ class DadBattleAnimania extends Song
 
 		shaderTime += event.elapsed;
 
-		// --- reflejos: iTime + espejado de animación ---
+		updateVideo(game, event.elapsed);
+
 		if (bfRef != null || dadRef != null)
 		{
 			reflectionTime += event.elapsed;
@@ -2482,7 +2714,6 @@ class DadBattleAnimania extends Song
 			}
 		}
 
-		// --- shaders portados de saygex.script ---
 		updateDangerBar(game, event.elapsed);
 
 		if (godRaysShader != null)
@@ -2492,8 +2723,7 @@ class DadBattleAnimania extends Song
 
 		applyGodRaysZoomFactor(game);
 
-		// --- modchart (corre antes de Strumline.update; la X se aplica en postUpdate) ---
-		mcPre(game, event.elapsed);
+		mlUpdate(game, event.elapsed);
 	}
 
 	function onResume(event)
@@ -2501,7 +2731,7 @@ class DadBattleAnimania extends Song
 		var game = PlayState.instance;
 		if (game == null) return;
 
-		if (vid != null && vid.visible) vid.resume();
+		if (vid != null && (videoPlaying || videoPending)) vid.resume();
 
 		if (chromShader == null) return;
 		game.camGame.filters = [new ShaderFilter(chromShader)];
@@ -2524,36 +2754,28 @@ class DadBattleAnimania extends Song
 			}
 			else if (kind == "godrays")
 			{
-				// Blank: value1 = "godrays", value2 = alpha final, value3 = duracion (s), value4 = ease (FlxEase)
 				godRaysEffect(event.eventData.getFloat("value2"), event.eventData.getFloat("value3"), event.eventData.getString("value4"));
 			}
 		}
 	}
 
-	// Port del onBeatHit de saygex.script (video + shaders + modchart).
 	function onBeatHit(event)
 	{
 		var game = PlayState.instance;
 		if (game == null || game.currentStage == null) return;
 
-		// Modchart: latido de escala del jugador desde el beat 284 (cada 2 beats)
-		if (event.beat > 283 && event.beat % 2 == 0)
-		{
-			mcSet("scale", 1.1, mcPlr, null);
-			mcEase("scale", 0.95, Conductor.instance.songPosition, Conductor.instance.beatLengthMs, FlxEase.sineOut, mcPlr, null, false);
-		}
+		mlBeat(event.beat);
 
-		if (event.beat == videoBeat)
+		if (event.beat >= videoBeat && event.beat < videoEndBeat)
 			startVideo(game);
 
-		// original: if (curBeat > 222 && curBeat < 250) vocals.playerVolume = 1;
 		if (event.beat > videoBeat - 1 && event.beat < 250 && game.vocals != null)
 			game.vocals.playerVolume = 1;
 	}
 
 	function onPause(event)
 	{
-		if (vid != null && vid.visible) vid.pause();
+		if (vid != null && (videoPlaying || videoPending)) vid.pause();
 	}
 
 	function onGameOver(event)
@@ -2566,9 +2788,15 @@ class DadBattleAnimania extends Song
 
 		if (vid != null)
 		{
-			vid.stop();
+			try
+			{
+				vid.stop();
+			}
+			catch (e:Dynamic) {}
 			vid.visible = false;
 		}
+		videoPending = false;
+		videoPlaying = false;
 		setHudHidden(game, false);
 		game.disableKeys = false;
 	}
@@ -2577,22 +2805,24 @@ class DadBattleAnimania extends Song
 	{
 		var game = PlayState.instance;
 
-		// modchart: soltar listeners (el strumline del oponente vive dentro del stage y lo destruye Stage.onDestroy)
-		if (mcPostFn != null)
-		{
-			FlxG.signals.postUpdate.remove(mcPostFn);
-			mcPostFn = null;
-		}
 		if (game != null)
 		{
-			if (mcOppIncomingFn != null && game.opponentStrumline != null) game.opponentStrumline.onNoteIncoming.remove(mcOppIncomingFn);
-			if (mcPlrIncomingFn != null && game.playerStrumline != null) game.playerStrumline.onNoteIncoming.remove(mcPlrIncomingFn);
+			if (mlOppIncomingFn != null && game.opponentStrumline != null) game.opponentStrumline.onNoteIncoming.remove(mlOppIncomingFn);
+			if (mlPlrIncomingFn != null && game.playerStrumline != null) game.playerStrumline.onNoteIncoming.remove(mlPlrIncomingFn);
 		}
-		mcOppIncomingFn = null;
-		mcPlrIncomingFn = null;
-		mcPlaced = false;
-		mcBaseReady = false;
-		mcTweens = [];
+		if (mlPostFn != null)
+		{
+			FlxG.signals.postUpdate.remove(mlPostFn);
+			mlPostFn = null;
+		}
+		mlOppIncomingFn = null;
+		mlPlrIncomingFn = null;
+		mlPlaced = false;
+		mlTw = new StringMap();
+		mlOpp = null;
+		mlPlr = null;
+		mlPlrRecs = [];
+		mlOppRecs = [];
 
 		if (dangerBar != null)
 		{
@@ -2601,21 +2831,26 @@ class DadBattleAnimania extends Song
 			dangerBar = null;
 		}
 
-		if (vid != null)
-		{
-			vid.stop();
-			if (game != null) game.remove(vid, true);
-			vid.destroy();
-			vid = null;
-		}
+		destroyVideo(game);
 		videoStarted = false;
+		videoFinished = false;
 		hiddenHud = [];
+
+		bfRef = null;
+		dadRef = null;
+		reflectionShaderBf = null;
+		reflectionShaderDad = null;
+		reflectionTime = 0;
+		shaderTime = 0.0;
+		chromShader = null;
+		chromChangeTween = null;
+		dangerPulse = -300.0;
 
 		dangerShader = null;
 		dangerSource = null;
 		dangerBarTried = false;
 		godRaysShader = null;
-		godRaysSpr = null; // el StageProp lo destruye Stage.onDestroy
+		godRaysSpr = null;
 	}
 
 	function chromaEffect(strength, time, easeStr)
@@ -2648,28 +2883,15 @@ class EggnogAnimaniaSong extends Song
 		super('eggnog-animania');
 	}
 
-	// ------------------------------------------------------------------
-	// Opciones
-	// ------------------------------------------------------------------
-
-	// V-Slice NO tiene Preferences.shaders. Conecta aca tu PerformanceSettings.
 	function shadersEnabled():Bool
 	{
 		return Save.instance.modOptions["shaders"] == true;
 	}
 
-	// V-Slice ya reproduce el sonido de cuenta regresiva del note style ANTES de
-	// disparar onCountdownStep, y no hay forma de cancelarlo desde un script.
-	// Con true, los sonidos eggnog se reproducen ENCIMA de los del note style.
 	var playEggnogCountdownSounds:Bool = true;
 
-	// Reemplazo de FunkinSprite.zoomFactor del fork (no existe en V-Slice).
-	// 1.0 = el zoom de camara afecta normal; 0.0 = el zoom no afecta.
 	var firefliesZoomFactor:Float = 0.35;
 
-	// ------------------------------------------------------------------
-	// Estado
-	// ------------------------------------------------------------------
 	var fireFliesShader = null;
 	var fireFliesSpr = null;
 	var fireFliesTime:Float = 0;
@@ -2758,10 +2980,6 @@ void main() {
     gl_FragColor = vec4(color * intensity, alpha);
 }";
 
-	// ------------------------------------------------------------------
-	// Ciclo de vida
-	// (onCreate de la cancion se dispara despues de crear stage y personajes)
-	// ------------------------------------------------------------------
 	override function onCreate(event)
 	{
 		super.onCreate(event);
@@ -2774,9 +2992,6 @@ void main() {
 		createFireflies();
 	}
 
-	// ------------------------------------------------------------------
-	// eggnore.script: fade-in negro en modo historia (antes onCreatePost)
-	// ------------------------------------------------------------------
 	function createFadeIn():Void
 	{
 		if (!PlayStatePlaylist.isStoryMode)
@@ -2797,9 +3012,6 @@ void main() {
 		play.refresh();
 	}
 
-	// ------------------------------------------------------------------
-	// eggnore.script: sonidos de cuenta regresiva (antes createCountDownSound)
-	// ------------------------------------------------------------------
 	override function onCountdownStep(event)
 	{
 		super.onCountdownStep(event);
@@ -2820,7 +3032,6 @@ void main() {
 			case "GO":
 				soundPath = 'introGo';
 			default:
-				// null
 		}
 
 		if (soundPath == null)
@@ -2829,9 +3040,6 @@ void main() {
 		FunkinSound.playOnce(Paths.sound("week5/" + soundPath + "-eggnog", "shared"), 1);
 	}
 
-	// ------------------------------------------------------------------
-	// eggnore.script: eventos por beat
-	// ------------------------------------------------------------------
 	override function onBeatHit(event)
 	{
 		super.onBeatHit(event);
@@ -2887,9 +3095,6 @@ void main() {
 		dad.shouldAlternate = false;
 	}
 
-	// ------------------------------------------------------------------
-	// fireflies.script: overlay de luciernagas (antes onCreatePost/onUpdatePost)
-	// ------------------------------------------------------------------
 	function createFireflies():Void
 	{
 		if (!shadersEnabled())
@@ -2932,7 +3137,6 @@ void main() {
 		fireFliesTime += event.elapsed * .25;
 		fireFliesShader.setFloat("iTime", fireFliesTime);
 
-		// Emulacion de zoomFactor: lerp(1 / zoom, 1, factor).
 		var zoom = FlxG.camera.zoom;
 		var f = (1 - firefliesZoomFactor) / zoom + firefliesZoomFactor;
 		fireFliesSpr.scale.set(fireFliesBaseScaleX * f, fireFliesBaseScaleY * f);
@@ -2941,36 +3145,22 @@ void main() {
 
 class WinterHorrorlandAnimaniaSong extends Song
 {
-  // ---------------------------------------------------------------------------
-  // CONFIGURACIÓN (ajusta aquí lo que en el fork era comportamiento propio)
-  // ---------------------------------------------------------------------------
 
-  // Equivale a skipCountDown = true del fork: la canción arranca sin cuenta atrás.
   var SKIP_COUNTDOWN:Bool = true;
 
-  // Vida que pierde el jugador por cada nota del oponente / por segundo mientras el oponente mantiene un sustain.
   var OPPONENT_NOTE_DRAIN:Float = 0.0075;
   var OPPONENT_HOLD_DRAIN:Float = 0.05;
 
-  // Equivale a playerStrumline.changeMode(false, 0.95) del fork (SUPUESTO: 0.95 es una escala).
   var PLAYER_STRUM_SCALE:Float = 0.95;
-  // Ponlo en true si changeMode además centraba la strumline del jugador.
   var CENTER_PLAYER_STRUMLINE:Bool = false;
 
-  // "MECHANIC" no existe en vanilla. Control cuyo nombre de tecla se muestra en el hint (ACCEPT, PAUSE, RESET...).
   var HINT_CONTROL:String = "SPACE";
 
-  // Duración de la intro (segundos) antes de llamar a startCountdown().
   var INTRO_LENGTH:Float = 7.8;
 
-  // --- Nieve roja (port de red_snow.script) ---
-  // En vanilla no existe Preferences.shaders: ponlo en false para desactivar la nieve (o enlázalo a tu opción de shaders del mod).
   var SNOW_ENABLED:Bool = true;
-  // zIndex de la nieve dentro del stage (395 = valor del fork; ajústalo a los zIndex de tus props/personajes).
   var SNOW_ZINDEX:Int = 395;
-  // Equivale a snowSpr.zoomFactor = 0.9 del fork. Vanilla no tiene zoomFactor: se compensa el zoom de camGame cada frame.
   var SNOW_ZOOM_FACTOR:Float = 0.9;
-  // Valores iniciales (también a los que vuelve al reintentar).
   var SNOW_LAYERS:Int = 30;
   var SNOW_DEPTH:Float = 0.3;
   var SNOW_BASE_WIDTH:Float = 0.2;
@@ -2979,9 +3169,6 @@ class WinterHorrorlandAnimaniaSong extends Song
   var SNOW_BASE_COLOR = 0xFFDEADB9;
   var SNOW_RED_COLOR = 0xFFEB6083;
 
-  // ---------------------------------------------------------------------------
-  // ESTADO
-  // ---------------------------------------------------------------------------
   var ps = null;
 
   var chromShader = null;
@@ -3036,11 +3223,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     super('winter-horrorland-animania');
   }
 
-  // ---------------------------------------------------------------------------
-  // CICLO DE VIDA
-  // ---------------------------------------------------------------------------
-
-  // Se llama cuando ya existen cámaras, stage, personajes, strumlines y healthbar (equivale a onCreate + onCreatePost).
   override function onCreate(event:ScriptEvent):Void
   {
     super.onCreate(event);
@@ -3054,7 +3236,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     setIntroCamera();
     createSnow();
 
-    // La strumline del oponente se esconde fuera de pantalla.
     ps.opponentStrumline.x -= FlxG.width / 1.5;
     ps.opponentStrumline.alpha = 0;
 
@@ -3085,7 +3266,6 @@ class WinterHorrorlandAnimaniaSong extends Song
   override function onDestroy(event:ScriptEvent):Void
   {
     super.onDestroy(event);
-    // PlayState ya limpia los tweens/timers globales en performCleanup().
     ps = null;
   }
 
@@ -3096,7 +3276,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     ps.camGame.filters = [];
   }
 
-  // En vanilla el PlayState NO se recrea al reintentar: hay que devolver todo al estado inicial.
   override function onSongRetry(event:SongRetryEvent):Void
   {
     super.onSongRetry(event);
@@ -3167,7 +3346,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     }
     ass = [];
 
-    // Tapa la escena hasta que arranque la "cuenta atrás" (se desvanece en onCountdownStart).
     introBlack = makeBlack();
   }
 
@@ -3181,10 +3359,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     drainOnOpponentHolds(event.elapsed);
   }
 
-  // ---------------------------------------------------------------------------
-  // CUENTA ATRÁS / CUTSCENE INICIAL
-  // (onCoundDownStart del fork -> onCountdownStart, cancelable)
-  // ---------------------------------------------------------------------------
   override function onCountdownStart(event:CountdownScriptEvent):Void
   {
     super.onCountdownStart(event);
@@ -3192,7 +3366,6 @@ class WinterHorrorlandAnimaniaSong extends Song
 
     var charting = ps.isChartingMode;
 
-    // Primera vez: se cancela la cuenta atrás, se reproduce la intro y al final se vuelve a llamar a startCountdown().
     if (!playedCutscene && !charting && !seenCutscene)
     {
       playedCutscene = true;
@@ -3201,7 +3374,6 @@ class WinterHorrorlandAnimaniaSong extends Song
       return;
     }
 
-    // Reintento: fundido desde negro.
     if (seenCutscene)
     {
       ps.tweenCameraZoom(1.6, 0, false);
@@ -3224,7 +3396,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     }
   }
 
-  // Arranca la canción sin cuenta atrás (Countdown.skipCountdown() no respeta startTimestamp).
   function skipCountdown()
   {
     Countdown.stopCountdown();
@@ -3329,9 +3500,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // INICIO / FIN DE CANCIÓN
-  // ---------------------------------------------------------------------------
   override function onSongStart(event:ScriptEvent):Void
   {
     super.onSongStart(event);
@@ -3339,7 +3507,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     FlxG.sound.music.fadeOut(1, 1);
   }
 
-  // onEndSong del fork: retrasa 1 segundo el final (cancela y vuelve a llamar a endSong()).
   override function onSongEnd(event:ScriptEvent):Void
   {
     super.onSongEnd(event);
@@ -3356,10 +3523,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // EVENTOS DE CHART ("Blank" / chroma)
-  // ---------------------------------------------------------------------------
-  // No se cancela el evento: si se cancelara, PlayState no lo marcaría como activado.
   override function onSongEvent(event:SongEventScriptEvent):Void
   {
     super.onSongEvent(event);
@@ -3377,21 +3540,16 @@ class WinterHorrorlandAnimaniaSong extends Song
     chromaEffect(strength, time, data.getString("value4"));
   }
 
-  // ---------------------------------------------------------------------------
-  // VIDA DEL JUGADOR (onOpponentNoteHit del fork)
-  // ---------------------------------------------------------------------------
   override function onNoteHit(event:HitNoteScriptEvent):Void
   {
     super.onNoteHit(event);
     if (ps == null || event.note == null || event.note.noteData == null) return;
 
-    // Las notas 4-7 son de la strumline del oponente.
     if (Math.floor(event.note.noteData.data / 4) != 1) return;
 
     if (ps.health > .1) ps.health = ps.health - OPPONENT_NOTE_DRAIN;
   }
 
-  // En vanilla no hay evento por frame para los sustains del oponente: se replica lo que hace PlayState.processNotes.
   function drainOnOpponentHolds(elapsed)
   {
     if (ps.isInCutscene || ps.opponentStrumline == null) return;
@@ -3411,15 +3569,11 @@ class WinterHorrorlandAnimaniaSong extends Song
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // TIMELINE POR BEATS
-  // ---------------------------------------------------------------------------
   override function onBeatHit(event:SongTimeScriptEvent):Void
   {
     super.onBeatHit(event);
     if (ps == null) return;
 
-    // La nieve corre también en modo charting (como en el fork); el resto del timeline no.
     snowBeat(event.beat);
 
     if (ps.isChartingMode) return;
@@ -3537,7 +3691,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     FlxTween.tween(ha, {"scale.x": 1.1, "scale.y": 1.1, angle: ha.angle + FlxG.random.float(-7, 7)}, .15, {ease: FlxEase.cubeOut});
   }
 
-  // Función aparte para que cada tween capture su propio sprite.
   function fadeHahaha(ha)
   {
     if (ha == null) return;
@@ -3552,7 +3705,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     });
   }
 
-  // El HUD entra desplazado 25px (arriba/abajo según el scroll) y vuelve a su sitio.
   function hudIntro()
   {
     var d = ps.playerStrumline.isDownscroll ? 25 : -25;
@@ -3574,12 +3726,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // BARRAS NEGRAS (poopBarUp / poopBarDown)
-  // En el fork usaban zoomFactor = 0. Aquí viven en camGame (con scrollFactor 0) y se
-  // compensa el zoom de la cámara cada frame para que ocupen siempre lo mismo en pantalla.
-  // barVis = píxeles visibles de cada barra (160 al inicio, 60/85/35/80 en la intro, 110 en el beat 8, -190 = ocultas).
-  // ---------------------------------------------------------------------------
   function createBars()
   {
     barW = Math.max(FlxG.width, ps.camGame.width) * 1.5;
@@ -3628,7 +3774,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     barDown.y = cy + ((cam.height - barVis) - cy) / z;
   }
 
-  // Una animación nueva cancela la anterior (como el último tween en escribir "y" en el original).
   function moveBars(target, time, ease, delay)
   {
     if (delay > 0)
@@ -3655,9 +3800,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // ABERRACIÓN CROMÁTICA
-  // ---------------------------------------------------------------------------
   function setupChroma()
   {
     try
@@ -3719,11 +3861,6 @@ class WinterHorrorlandAnimaniaSong extends Song
     return f;
   }
 
-  // ---------------------------------------------------------------------------
-  // NIEVE ROJA (port de red_snow.script)
-  // Shader idéntico al del fork, embebido. Si prefieres un asset: muévelo a shaders/redSnow.frag y usa
-  // Assets.getText(Paths.frag("redSnow")) en createSnow().
-  // ---------------------------------------------------------------------------
   var SNOW_FRAG:String = "
 #pragma header
 
@@ -3822,7 +3959,6 @@ void main()
     snowSpr.color = SNOW_BASE_COLOR;
     snowSpr.alpha = SNOW_BASE_ALPHA;
 
-    // makeSolidColor de vanilla es un gráfico 2x2 escalado: el tamaño real vive en scale, así que el zoom se aplica sobre esta base.
     snowBaseScaleX = snowSpr.scale.x;
     snowBaseScaleY = snowSpr.scale.y;
   }
@@ -3834,14 +3970,12 @@ void main()
     snowTime = snowTime + elapsed * snowTimeSpeed;
     snowShader.setFloat("iTime", snowTime);
 
-    // Emula zoomFactor: multiplicador = lerp(1 / zoom, 1, zoomFactor) => zoom efectivo = lerp(1, zoom, zoomFactor).
     var z = ps.camGame.zoom;
     if (z < 0.05) z = 0.05;
     var m = (1 / z) * (1 - SNOW_ZOOM_FACTOR) + SNOW_ZOOM_FACTOR;
     snowSpr.scale.set(snowBaseScaleX * m, snowBaseScaleY * m);
   }
 
-  // En vanilla el PlayState no se recrea al reintentar: la nieve vuelve a su estado inicial.
   function resetSnow()
   {
     if (snowSpeedTween != null) snowSpeedTween.cancel();
@@ -3864,7 +3998,6 @@ void main()
     snowSpr.color = SNOW_BASE_COLOR;
   }
 
-  // Cada canal (velocidad / alpha / ancho) tiene su propio tween; uno nuevo cancela el anterior del mismo canal.
   function tweenSnowSpeed(target, time)
   {
     if (snowSpeedTween != null) snowSpeedTween.cancel();
@@ -3893,7 +4026,6 @@ void main()
     });
   }
 
-  // Timeline por beats de red_snow.script.
   function snowBeat(beat)
   {
     if (snowShader == null || snowSpr == null) return;
@@ -3953,9 +4085,6 @@ void main()
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // UTILIDADES
-  // ---------------------------------------------------------------------------
   function resetRuntimeState()
   {
     seenCutscene = false;
@@ -3995,7 +4124,6 @@ void main()
     return ps.currentStage.getNamedProp(name);
   }
 
-  // scoreText es privado en PlayState; si no se puede leer simplemente no se anima.
   function getScoreText()
   {
     var st = null;
@@ -4021,9 +4149,10 @@ void main()
 
   function applyPlayerStrumlineMode()
   {
-    #if !mobile
+    if (AmMlpc.playerStrum())
+    {
     ps.playerStrumline.strumlineScale.set(PLAYER_STRUM_SCALE, PLAYER_STRUM_SCALE);
-    #end
+    }
     if (CENTER_PLAYER_STRUMLINE) ps.playerStrumline.x = (FlxG.width - ps.playerStrumline.width) / 2;
   }
 
@@ -4039,7 +4168,6 @@ void main()
     ps.tweenCameraToPosition(camPos.x + 450, camPos.y + 300, 0);
   }
 
-  // Los subtítulos (si están activados) usan la fuente de este mod.
   function styleSubtitles()
   {
     if (ps.subtitles == null) return;
@@ -4086,7 +4214,6 @@ void main()
     ps.add(hintText);
   }
 
-  // Pantalla negra en camCutscene (no se ve afectada por el zoom de camGame).
   function makeBlack()
   {
     var b = new FunkinSprite();
@@ -4140,33 +4267,20 @@ void main()
 
 class TimeBarModule extends Module
 {
-  // ---------------------------------------------------------------------------
-  // CONFIGURACIÓN
-  // ---------------------------------------------------------------------------
 
-  // Grosor de la barra en píxeles de pantalla.
   var BAR_HEIGHT:Float = 9;
 
-  // Opacidad de la barra.
   var BAR_ALPHA:Float = 0.8;
 
-  // Color de la barra.
   var BAR_COLOR = 0xFFFFFFFF;
 
-  // Orden de dibujado dentro del HUD (la healthbar usa 800/801).
   var BAR_ZINDEX:Int = 900;
 
-  // Píxeles extra que la barra se pasa por arriba y por la izquierda (fuera de pantalla) para que
-  // el redondeo de subpíxeles nunca deje un hueco en el borde.
   var BAR_OVERSCAN:Float = 2;
 
-  // ---------------------------------------------------------------------------
-  // ESTADO
-  // ---------------------------------------------------------------------------
   var bar = null;
   var drawHook = null;
 
-  // Solo se muestra en estos stages (id de PlayState.instance.currentStage.id).
   static var MEGA_ALLOWED_STAGES:Array<String> = [
     "mainStageAmTake",
     "serviceEnterance",
@@ -4185,11 +4299,9 @@ class TimeBarModule extends Module
 
   public function new()
   {
-    // Solo recibe eventos mientras el juego está en PlayState.
     super('TimeBarModule', 1000, {state: PlayState});
   }
 
-  // initHealthBar() y el resto del HUD ya existen cuando termina el cambio de estado.
   override function onStateChangeEnd(event:StateChangeScriptEvent):Void
   {
     super.onStateChangeEnd(event);
@@ -4206,7 +4318,6 @@ class TimeBarModule extends Module
     createBar(ps);
   }
 
-  // Al salir de PlayState se suelta el hook (el sprite se destruye junto con el estado).
   override function onStateChangeBegin(event:StateChangeScriptEvent):Void
   {
     super.onStateChangeBegin(event);
@@ -4223,9 +4334,6 @@ class TimeBarModule extends Module
     bar = null;
   }
 
-  // ---------------------------------------------------------------------------
-  // BARRA
-  // ---------------------------------------------------------------------------
   function createBar(ps)
   {
     bar = new FunkinSprite();
@@ -4239,7 +4347,6 @@ class TimeBarModule extends Module
     ps.add(bar);
     ps.refresh();
 
-    // preDraw se dispara justo antes de renderizar, después de todos los update() (incluido el bop de camHUD).
     drawHook = function()
     {
       onPreDraw();
@@ -4261,7 +4368,6 @@ class TimeBarModule extends Module
 
     var ps = PlayState.instance;
 
-    // Si el estado cambió o el sprite fue destruido, no queda nada que colocar.
     if (ps == null || FlxG.state != ps || !bar.exists)
     {
       removeDrawHook();
@@ -4272,8 +4378,6 @@ class TimeBarModule extends Module
     layoutBar(ps.camHUD, getProgress());
   }
 
-  // Progreso 0..1 según la posición de la canción.
-  // Se le resta combinedOffset (offsets de instrumental/formato/global) para que la barra siga el tiempo real de la música.
   function getProgress()
   {
     var music = FlxG.sound.music;
@@ -4287,8 +4391,6 @@ class TimeBarModule extends Module
     return p;
   }
 
-  // Deja la barra en la esquina superior izquierda de la PANTALLA, con `progress` * ancho de pantalla de largo.
-  // El zoom de la cámara escala respecto a su centro; se invierte para que la barra ocupe siempre lo mismo en pantalla.
   function layoutBar(cam, progress)
   {
     if (progress <= 0)
@@ -4304,7 +4406,6 @@ class TimeBarModule extends Module
     var cx = cam.width / 2;
     var cy = cam.height / 2;
 
-    // Rectángulo deseado en coordenadas de pantalla (con el sobrante fuera de pantalla arriba/izquierda).
     var screenLeft = -BAR_OVERSCAN;
     var screenTop = -BAR_OVERSCAN;
     var screenW = cam.width * progress + BAR_OVERSCAN;
@@ -4328,7 +4429,6 @@ class BoyfriendAnimaniaCharacter extends MultiAnimateAtlasCharacter
 	{
 		super.onCreate(e);
 		ignoreExclusionPref.push("singDOWN");
-		//idleSuffix = "-angry";
 	}
 
 	function onNoteHit(event:HitNoteScriptEvent)
@@ -4392,10 +4492,8 @@ class BoyfriendAnimaniaCharacter extends MultiAnimateAtlasCharacter
 		}
 	}
 
-	// En V-Slice BaseCharacter no tiene lastHoldFinish: se declara aqui para que las asignaciones de abajo no fallen.
 	var lastHoldFinish:Null<Float> = null;
 
-	// BANNED_NOTEKINDS vive en el modulo AnimaniaStuff (AnimaniaModule no existe en V-Slice).
 	function isBannedKind(kind:String):Bool
 	{
 		var animania = ModuleHandler.getModule("AnimaniaStuff");
@@ -4404,8 +4502,6 @@ class BoyfriendAnimaniaCharacter extends MultiAnimateAtlasCharacter
 		return animania.scriptCall("isBannedNoteKind", [kind]) == true;
 	}
 
-	// BaseCharacter.initHealthIcon devuelve Void en V-Slice (no el icono): el icono se toma de PlayState
-	// y se le pasa a AnimaniaStuff con isPlayer = !isOpponent.
 	override function initHealthIcon(isOpponent:Bool):Void
 	{
 		super.initHealthIcon(isOpponent);
@@ -4468,19 +4564,13 @@ class BoyfriendChristmasAnimaniaCharacter extends MultiAnimateAtlasCharacter
 		GameOverSubState.blueBallSuffix = '-xmas';
 	}
 
-	// En V-Slice BaseCharacter no tiene lastHoldFinish: se declara aqui para que las asignaciones no fallen.
 	var lastHoldFinish:Null<Float> = null;
 
 	function onNoteHit(event:HitNoteScriptEvent)
 	{
-		// if (event.note.kind == "solotime" || event.note.noAnimation ||) return;
-
-		// if (AnimaniaModule.BANNED_NOTEKINDS.contains(event.note.kind))
-		//	return;
 
 		if (event.note.noteData.getMustHitNote() && characterType == CharacterType.BF && !event.eventCanceled)
 		{
-			// Override the hit note animation.
 			if (event.note.holdNoteSprite != null)
 				lastHoldFinish = event.note.strumTime + event.note.noteData.length;
 			switch (event.note.kind)
@@ -4501,13 +4591,10 @@ class BoyfriendChristmasAnimaniaCharacter extends MultiAnimateAtlasCharacter
 					return;
 			}
 		}
-		// super.onNoteHit(event);
 	}
 
 	function onNoteMiss(event)
 	{
-		// if (AnimaniaModule.BANNED_NOTEKINDS.contains(event.note.kind))
-		//	return;
 
 		if (event.note.noteData.getMustHitNote() && characterType == CharacterType.BF && !event.eventCanceled)
 		{
@@ -4533,8 +4620,6 @@ class BoyfriendChristmasAnimaniaCharacter extends MultiAnimateAtlasCharacter
 		super.onNoteMiss(event);
 	}
 
-	// BaseCharacter.initHealthIcon devuelve Void en V-Slice (no el icono): el icono se toma de PlayState
-	// y se le pasa a AnimaniaStuff con isPlayer = !isOpponent.
 	override function initHealthIcon(isOpponent:Bool):Void
 	{
 		super.initHealthIcon(isOpponent);
@@ -4589,7 +4674,6 @@ class DadAnimaniaCharacter extends AnimateAtlasCharacter
 		super.onCreate(event);
 	}
 
-	// En V-Slice BaseCharacter no tiene lastHoldFinish: se declara aqui para que las asignaciones no fallen.
 	var lastHoldFinish:Null<Float> = null;
 
 	public override function playAnimation(name:String, restart:Bool = false, ignoreOther:Bool = false, reversed:Bool = false):Void
@@ -4609,8 +4693,6 @@ class DadAnimaniaCharacter extends AnimateAtlasCharacter
 
 	function onNoteHit(event:HitNoteScriptEvent)
 	{
-		// if (AnimaniaModule.BANNED_NOTEKINDS.contains(event.note.kind))
-		//	return;
 
 		if (!event.note.noteData.getMustHitNote() && characterType == CharacterType.DAD && !event.eventCanceled)
 		{
@@ -4666,12 +4748,8 @@ class DadBeastCharacter extends AnimateAtlasCharacter
 	override function onCreate(event:ScriptEvent):Void
 	{
 		super.onCreate(event);
-		// idleSuffix = "-alt";
 	}
 
-	// En V-Slice BaseCharacter no tiene lastHoldFinish (el original lo asignaba y nadie lo leia), se omite.
-	// El original tenia super.onNoteHit comentado; aqui se llama solo cuando no es una nota del oponente,
-	// para que el personaje tambien funcione si se usa como BF.
 	override function onNoteHit(event:HitNoteScriptEvent):Void
 	{
 		if (!event.note.noteData.getMustHitNote() && characterType == CharacterType.DAD && !event.eventCanceled)
@@ -4691,8 +4769,6 @@ class DadBeastCharacter extends AnimateAtlasCharacter
 		super.onNoteHit(event);
 	}
 
-	// BaseCharacter.initHealthIcon devuelve Void en V-Slice (no el icono): el icono se toma de PlayState
-	// y se le pasa a AnimaniaStuff con isPlayer = !isOpponent.
 	override function initHealthIcon(isOpponent:Bool):Void
 	{
 		super.initHealthIcon(isOpponent);
@@ -4708,15 +4784,11 @@ class DadBeastCharacter extends AnimateAtlasCharacter
 		if (animania == null)
 			return;
 
-		// El icono es un atlas de Animate (images/icons/beast-dearest/: Animation.json + spritemap1.json/png).
-		// FunkinSprite (y por tanto HealthIcon) ya sabe cargar atlas; esto reemplaza los frames del icono que dejo configure().
 		icon.loadTextureAtlas("icons/beast-dearest", null, icon.getDefaultAtlasSettings());
 		icon.antialiasing = true;
 
-		// AnimaniaStuff detecta el atlas y registra las animaciones por frame label (win, basic, lose, predeath, ...).
 		animania.scriptCall("makeAmTakeAnimatedIcon", [icon, !isOpponent]);
 
-		// El tamano se calculo con el graphic anterior: se recalcula con el atlas ya cargado.
 		icon.snapToTargetSize();
 	}
 }
@@ -4731,18 +4803,14 @@ class ParentsChristmasAnimaniaCharacter extends AnimateAtlasCharacter
 	override function onCreate(event:ScriptEvent):Void
 	{
 		super.onCreate(event);
-		// idleSuffix = "-angry";
-		//shader = HSVBlendedShader.xmasInit();
 	}
 
-	// En V-Slice BaseCharacter no tiene lastHoldFinish: se declara aqui para que las asignaciones no fallen.
 	var lastHoldFinish:Null<Float> = null;
 
 	function onNoteHit(event:HitNoteScriptEvent)
 	{
 		if (!event.note.noteData.getMustHitNote() && characterType == CharacterType.DAD && !event.eventCanceled)
 		{
-			// Override the hit note animation.
 			if (event.note.holdNoteSprite != null)
 				lastHoldFinish = event.note.strumTime + event.note.noteData.length;
 			switch (event.note.kind)
@@ -4768,7 +4836,6 @@ class ParentsChristmasAnimaniaCharacter extends AnimateAtlasCharacter
 					return;
 			}
 		}
-		// super.onNoteHit(event);
 	}
 
 	function onNoteMiss(e)
@@ -4798,7 +4865,6 @@ class ParentsChristmasAnimaniaCharacter extends AnimateAtlasCharacter
 				super.playAnimation(name, restart, ignoreOther, reversed);
 		}
 
-		//trace(canPlayOtherAnims, name);
 		if (doBasic)
 			super.playAnimation(name, restart, ignoreOther, reversed);
 	}
@@ -4817,20 +4883,14 @@ class ParentsChristmasAnimaniaCharacter extends AnimateAtlasCharacter
 				playAnimation("cocoaSoloLeft", true, true);
 
 			case "cocoaSoloLookRight":
-				// trace("я сосу яйца по больше<3");
 				canPlayOtherAnims = true;
 				playAnimation("cocoaSolo", true, true);
 				/*new FlxTimer().start(4, () ->
 				{
-					// idleSuffix = "";
 					canPlayOtherAnims = true;
-					// trace("ОТСОСИ ХУЙ БЛЯТЬ AAAA");
 				});*/
 
 			case "singRIGHTmiss":
-				//idleSuffix = "-angry";
-				//danceEvery = 2;
-				//shouldAlternate = false;
 				super.onAnimationFinished(prefix);
 
 			default:
@@ -4838,8 +4898,6 @@ class ParentsChristmasAnimaniaCharacter extends AnimateAtlasCharacter
 		}
 	}
 
-	// BaseCharacter.initHealthIcon devuelve Void en V-Slice (no el icono): el icono se toma de PlayState
-	// y se le pasa a AnimaniaStuff con isPlayer = !isOpponent.
 	override function initHealthIcon(isOpponent:Bool):Void
 	{
 		super.initHealthIcon(isOpponent);
@@ -4876,16 +4934,12 @@ class GirlfriendAnimaniaCharacter extends AnimateAtlasCharacter
 		switch (name)
 		{
 			case "pre-dance":
-				//canPlayOtherAnims = true;
 
 			case "end-dance":
-				//canPlayOtherAnims = true;
 
 			case "stop drop dance":
 				idleSuffix = "";
 				return;
-				// case "imok":
-				//	idleSuffix = "";
 		}
 
     if (!animationOffsets.exists(name)) setAnimationOffsets(name, 0, 0);
@@ -4916,13 +4970,10 @@ class GirlfriendAnimaniaCharacter extends AnimateAtlasCharacter
 		super.onAnimationFinished(prefix);
 	}
 
-	// En V-Slice BaseCharacter no tiene lastHoldFinish: se declara aqui para que las asignaciones no fallen.
 	var lastHoldFinish:Null<Float> = null;
 
 	function onNoteHit(event:HitNoteScriptEvent)
 	{
-		// if (AnimaniaModule.BANNED_NOTEKINDS.contains(event.note.kind) || event.eventCancele)
-		//	return;
 
 		if ((!event.note.noteData.getMustHitNote() && characterType == CharacterType.DAD)
 			|| (event.note.noteData.getMustHitNote() && characterType == CharacterType.BF)
@@ -4963,8 +5014,6 @@ class GirlfriendAnimaniaCharacter extends AnimateAtlasCharacter
 		super.playComboDropAnimation(comboCount);
 	}
 
-	// BaseCharacter.initHealthIcon devuelve Void en V-Slice (no el icono): el icono se toma de PlayState
-	// y se le pasa a AnimaniaStuff con isPlayer = !isOpponent.
 	override function initHealthIcon(isOpponent:Bool):Void
 	{
 		super.initHealthIcon(isOpponent);
@@ -5062,7 +5111,6 @@ class GirlfriendChristmasAnimaniaCharacter extends AnimateAtlasCharacter
 
 	override function onUpdate(e)
 	{
-		// Sin el super, BaseCharacter.onUpdate no corre (hold de animaciones, vuelta al idle, etc.).
 		super.onUpdate(e);
 
 		/*if (parentStage != null && fgSnow != null)
@@ -5080,12 +5128,6 @@ class KomiCharacter extends MultiSparrowCharacter
 		super('komi');
 	}
 
-	// ------------------------------------------------------------------
-	// Estado del icono animado de Komi.
-	// En V-Slice HealthIcon.updateHealthIcon no es dynamic (no se puede reemplazar con una lambda),
-	// asi que el icono pasa a autoUpdate = false y esta clase replica su maquina de estados,
-	// sus offsets por animacion y su posicion en onUpdate (mismo patron que AnimaniaStuff).
-	// ------------------------------------------------------------------
 	var myIcon:HealthIcon = null;
 	var iconIsPlayer:Bool = false;
 	var iconIsAlive:Bool = true;
@@ -5097,12 +5139,9 @@ class KomiCharacter extends MultiSparrowCharacter
 	var iconOffsets:Dynamic = null;
 
 	var LOSING_THRESHOLD:Float = 0.25 * 2;
-	// Copia de HealthIcon.POSITION_OFFSET (es private static en V-Slice).
 	var ICON_POSITION_OFFSET:Float = 26;
 	var dirNames:Array<String> = ['LEFT', 'DOWN', 'UP', 'RIGHT'];
 
-	// En V-Slice BaseCharacter no tiene lastNoteAnimation / lastHoldFinish / loopCurrentAnim / _data.loopHoldFrame
-	// (eran del motor original): se declaran aqui y loopCurrentAnim se reemplaza por holdLoopIcon().
 	var lastNoteAnimation:String = null;
 	var lastHoldFinish:Null<Float> = null;
 
@@ -5141,7 +5180,6 @@ class KomiCharacter extends MultiSparrowCharacter
 		return characterType != CharacterType.BF || isHoldingNote();
 	}
 
-	// Reemplazo de loopCurrentAnim: mientras dura el sustain, el icono repite su animacion de canto.
 	function holdLoopIcon():Void
 	{
 		if (isHoldingNoteNow() && isSinging() && myIcon.isAnimationFinished())
@@ -5152,7 +5190,6 @@ class KomiCharacter extends MultiSparrowCharacter
 		}
 	}
 
-	// Reemplazo de icon.updateHealthIcon = (h) -> {...}
 	function updateKomiIconState():Void
 	{
 		var health:Float = iconIsPlayer ? PlayState.instance.health : Constants.HEALTH_MAX - PlayState.instance.health;
@@ -5185,7 +5222,6 @@ class KomiCharacter extends MultiSparrowCharacter
 		}
 	}
 
-	// Reemplazo de icon.animOffsets: se suman al iconOffset propio del icono (el de la data del personaje).
 	function updateKomiIconOffsets():Void
 	{
 		var anim:String = myIcon.getCurrentAnimation();
@@ -5199,7 +5235,6 @@ class KomiCharacter extends MultiSparrowCharacter
 		myIcon.updateHitbox();
 	}
 
-	// Replica de la parte de posicion de HealthIcon.updatePosition (solo corre con autoUpdate = true).
 	function updateKomiIconPosition():Void
 	{
 		var bar = PlayState.instance.healthBar;
@@ -5211,7 +5246,6 @@ class KomiCharacter extends MultiSparrowCharacter
 		myIcon.y = bar.y - (myIcon.height / 2);
 	}
 
-	// BaseCharacter.initHealthIcon devuelve Void en V-Slice (no el icono): se toma de PlayState segun isOpponent.
 	override function initHealthIcon(isOpponent:Bool):Void
 	{
 		super.initHealthIcon(isOpponent);
@@ -5237,7 +5271,6 @@ class KomiCharacter extends MultiSparrowCharacter
 		icon.animation.addByPrefix("toLosing", "basic-to-lose", 24, false);
 		icon.animation.addByPrefix("fromLosing", "lose-to-basic", 24, false);
 
-		// El icono esta flipX, por eso LEFT usa el prefijo "right" y viceversa.
 		icon.animation.addByPrefix("singLEFT", "right", 24, false);
 		icon.animation.addByPrefix("singRIGHT", "left", 24, false);
 		icon.animation.addByPrefix("singUP", "up", 24, false);
@@ -5261,7 +5294,6 @@ class KomiCharacter extends MultiSparrowCharacter
 		iconOffsets.set("singLEFT-alt", [-5.0, 0.0]);
 	}
 
-	// El icono es de PlayState: al destruirse el personaje (cambio de personaje, reinicio) se le devuelve su autoUpdate.
 	override function onDestroy(event:ScriptEvent):Void
 	{
 		if (myIcon != null)
@@ -5297,7 +5329,6 @@ class KomiCharacter extends MultiSparrowCharacter
 	{
 		super.playSingAnimation(dir, miss, suffix);
 
-		// NoteDirection es un abstract sobre Int: se indexa directo en lugar de usar dir.nameUpper.
 		lastNoteAnimation = 'sing' + dirNames[Std.int(dir) % 4];
 
 		if (iconIsAlive && myIcon != null)
@@ -5312,7 +5343,7 @@ class KomiCharacter extends MultiSparrowCharacter
 		super.onBeatHit(event);
 		if (PlayState.instance == null) return;
 
-		if (event.beat == 168) // no skips
+		if (event.beat == 168)
 		{
 			iconIsAlive = false;
 		}
@@ -5336,7 +5367,6 @@ class TadanoCharacter extends MultiAnimateAtlasCharacter
 		PauseSubState.musicSuffix = '-phonecall';
 	}
 
-	// BANNED_NOTEKINDS vive en el modulo AnimaniaStuff (AnimaniaModule no existe en V-Slice).
 	function isBannedKind(kind:String):Bool
 	{
 		var animania = ModuleHandler.getModule("AnimaniaStuff");
@@ -5345,7 +5375,6 @@ class TadanoCharacter extends MultiAnimateAtlasCharacter
 		return animania.scriptCall("isBannedNoteKind", [kind]) == true;
 	}
 
-	// El original pasaba por AnimaniaModule.BANNED_NOTEKINDS.contains(...)
 	override function onNoteHit(event:HitNoteScriptEvent):Void
 	{
 		if (isBannedKind(event.note.kind))
@@ -5353,8 +5382,6 @@ class TadanoCharacter extends MultiAnimateAtlasCharacter
 
 		if (event.note.noteData.getMustHitNote() && characterType == CharacterType.BF && !event.eventCanceled)
 		{
-			// Override the hit note animation.
-			// (lastHoldFinish se asignaba en el original pero nadie lo leia: BaseCharacter de V-Slice no lo tiene, se omite.)
 			holdTimer = 0;
 			switch (event.note.kind)
 			{
@@ -5402,8 +5429,6 @@ class TadanoCharacter extends MultiAnimateAtlasCharacter
 		}
 	}
 
-	// BaseCharacter.initHealthIcon devuelve Void en V-Slice (no el icono): el icono se toma de PlayState
-	// y se le pasa a AnimaniaStuff con isPlayer = !isOpponent y los offsets por animacion.
 	override function initHealthIcon(isOpponent:Bool):Void
 	{
 		super.initHealthIcon(isOpponent);
@@ -5479,9 +5504,6 @@ class TadanoCharacter extends MultiAnimateAtlasCharacter
 
 	var coolRetrySprite:FunkinSprite = null;
 
-	// V-Slice no tiene GameOverSubState.darkBg: el fondo negro es una variable local de create().
-	// Se busca entre los miembros del substate (sprite fijo a camara y de pantalla completa);
-	// si no aparece, se crea uno propio detras de todo.
 	function findGameOverBg():FlxSprite
 	{
 		var go = GameOverSubState.instance;
@@ -5543,12 +5565,10 @@ class TadanoCharacter extends MultiAnimateAtlasCharacter
 
 		FlxTween.tween(darkBg, {alpha: 0.75}, 1.25, {ease: FlxEase.backOut, startDelay: 1});
 
-		// El FunkinSprite de V-Slice acepta la ruta de Paths.animateAtlas directo en el constructor.
 		coolRetrySprite = new FunkinSprite(this.x - 850, this.y + 450, Paths.animateAtlas("characters/phonecall/tadano-phone-death-text", "shared"));
 		coolRetrySprite.anim.addByFrameLabel("start", "start", 24, false);
 		coolRetrySprite.anim.addByFrameLabel("loop", "loop", 24, true);
 		coolRetrySprite.anim.addByFrameLabel("confirm", "confirm", 24, false);
-		// Original: coolRetrySprite.anims.play(...) (typo: la propiedad es anim) y addOnce se consumia con cualquier animacion.
 		coolRetrySprite.anim.onFinish.add(function(n:String):Void
 		{
 			if (n == "start") coolRetrySprite.anim.play("loop", true);
@@ -5558,19 +5578,6 @@ class TadanoCharacter extends MultiAnimateAtlasCharacter
 	}
 }
 
-// ======================================================================
-// KOMI STAND / TADANO STAND (adaptados de komi-stand.hx y tadano-stand.hx)
-// Diferencias de API contra el motor original (comparado con el source de V-Slice):
-//  - HealthIcon.updateHealthIcon y HealthIcon.animOffsets no existen / no son dynamic: el icono pasa a
-//    autoUpdate = false y la maquina de estados, los offsets y la posicion se replican en onUpdate.
-//  - BaseCharacter.initHealthIcon devuelve Void (el icono se toma de PlayState.iconP1 / iconP2).
-//  - FlxAtlasSprite (funkin.graphics.adobeanimate) no existe: se usa FunkinSprite con Paths.animateAtlas
-//    y el controlador `anim` (no `anims`).
-//  - GameOverSubState no tiene darkBg, boyfriend/cameraFollowPoint son privados y el substate se DESTRUYE
-//    al reintentar (con todo lo que tenga dentro), asi que lo que se le agrega se limpia en closeCallback.
-//  - FlxSprite no tiene zoomFactor ni FunkinSprite.shouldDraw: el efecto "no escalar con el zoom" se emula
-//    contra-escalando los sprites fijos segun FlxG.camera.zoom.
-// ======================================================================
 class KomiStandCharacter extends MultiSparrowCharacter
 {
 	function new()
@@ -5585,10 +5592,6 @@ class KomiStandCharacter extends MultiSparrowCharacter
 			this.danceEvery = 99999;
 	}
 
-	// ------------------------------------------------------------------
-	// Estado del icono animado de Komi (idle / losing / toLosing / fromLosing).
-	// En V-Slice HealthIcon.updateHealthIcon no es dynamic (no se puede reemplazar con una lambda).
-	// ------------------------------------------------------------------
 	var myIcon:HealthIcon = null;
 	var iconIsPlayer:Bool = false;
 	var iconBaseX:Float = 0;
@@ -5597,7 +5600,6 @@ class KomiStandCharacter extends MultiSparrowCharacter
 	var iconOffsets:Dynamic = null;
 
 	var LOSING_THRESHOLD:Float = 0.25 * 2;
-	// Copia de HealthIcon.POSITION_OFFSET (es private static en V-Slice).
 	var ICON_POSITION_OFFSET:Float = 26;
 
 	override function onUpdate(event:UpdateScriptEvent):Void
@@ -5612,10 +5614,8 @@ class KomiStandCharacter extends MultiSparrowCharacter
 		super.onUpdate(event);
 	}
 
-	// Reemplazo de icon.updateHealthIcon = (h) -> {...}
 	function updateStandIconState():Void
 	{
-		// Igual que HealthIcon.updatePosition: el oponente usa la salud invertida.
 		var health:Float = iconIsPlayer ? PlayState.instance.health : Constants.HEALTH_MAX - PlayState.instance.health;
 		var cur:String = myIcon.getCurrentAnimation();
 
@@ -5641,7 +5641,6 @@ class KomiStandCharacter extends MultiSparrowCharacter
 		}
 	}
 
-	// Reemplazo de icon.animOffsets: se suman al iconOffset propio del icono (el de la data del personaje).
 	function updateStandIconOffsets():Void
 	{
 		var anim:String = myIcon.getCurrentAnimation();
@@ -5655,7 +5654,6 @@ class KomiStandCharacter extends MultiSparrowCharacter
 		myIcon.updateHitbox();
 	}
 
-	// Replica de la parte de posicion de HealthIcon.updatePosition (solo corre con autoUpdate = true).
 	function updateStandIconPosition():Void
 	{
 		var bar = PlayState.instance.healthBar;
@@ -5667,7 +5665,6 @@ class KomiStandCharacter extends MultiSparrowCharacter
 		myIcon.y = bar.y - (myIcon.height / 2);
 	}
 
-	// BaseCharacter.initHealthIcon devuelve Void en V-Slice (no el icono): se toma de PlayState segun isOpponent.
 	override function initHealthIcon(isOpponent:Bool):Void
 	{
 		super.initHealthIcon(isOpponent);
@@ -5697,7 +5694,6 @@ class KomiStandCharacter extends MultiSparrowCharacter
 		iconOffsets.set("toLosing", [6.0, 1.0]);
 	}
 
-	// El icono es de PlayState: al destruirse el personaje (cambio de personaje, salir de la cancion) se le devuelve su autoUpdate.
 	override function onDestroy(event:ScriptEvent):Void
 	{
 		if (myIcon != null)
@@ -5726,10 +5722,8 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		PauseSubState.musicSuffix = '-phonecall';
 	}
 
-	// Lista de respaldo (la misma que AnimaniaModule.BANNED_NOTEKINDS).
 	var BANNED_FALLBACK:Array<String> = ["noAnimation", "noanim", "parents-miss", "solotime"];
 
-	// El original usaba AnimaniaModule.BANNED_NOTEKINDS.contains(...): en MegaScript esa lista vive en el modulo AnimaniaModule.
 	function isBannedKind(kind:String):Bool
 	{
 		if (kind == null) return false;
@@ -5743,7 +5737,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		return BANNED_FALLBACK.indexOf(kind) != -1;
 	}
 
-	// (lastHoldFinish se asignaba en el original pero nadie lo leia: BaseCharacter de V-Slice no lo tiene, se omite.)
 	override function onNoteHit(event:HitNoteScriptEvent):Void
 	{
 		if (isBannedKind(event.note.kind))
@@ -5751,7 +5744,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 
 		if (event.note.noteData.getMustHitNote() && characterType == CharacterType.BF && !event.eventCanceled)
 		{
-			// Override the hit note animation.
 			holdTimer = 0;
 			switch (event.note.kind)
 			{
@@ -5765,7 +5757,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 			return;
 		}
 
-		// El original tenia el super comentado (si era DAD no hacia nada); aqui el DAD sigue el comportamiento base de V-Slice.
 		if (!event.note.noteData.getMustHitNote() && characterType == CharacterType.DAD && !event.eventCanceled)
 			super.onNoteHit(event);
 	}
@@ -5793,8 +5784,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		super.onNoteMiss(event);
 	}
 
-	// BaseCharacter.initHealthIcon devuelve Void en V-Slice (no el icono): el icono se toma de PlayState
-	// y se le pasa a AnimaniaStuff con isPlayer = !isOpponent y los offsets por animacion.
 	override function initHealthIcon(isOpponent:Bool):Void
 	{
 		super.initHealthIcon(isOpponent);
@@ -5815,14 +5804,11 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		animania.scriptCall("makeAmTakeAnimatedIcon", [icon, !isOpponent, offs]);
 	}
 
-	///////////////////////////////////// DEATH
 	var deathActive:Bool = false;
 	var coolRetrySprite:FunkinSprite = null;
 	var retryAnim:String = "";
 	var deathTimerManager:FlxTimerManager = null;
 
-	// Barras negras laterales y degradado. Sus posiciones "de pantalla" viven en leftPos / rightPos / gradPos
-	// (son las que se tweenean) y pinFixedSprites() las convierte a coordenadas de mundo segun el zoom (ver pinToScreen).
 	var leftBlack:FlxSprite = null;
 	var rightBlack:FlxSprite = null;
 	var blackGradient:FlxSprite = null;
@@ -5830,7 +5816,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 	var rightPos:Dynamic = null;
 	var gradPos:Dynamic = null;
 
-	// Estado a restaurar al reintentar (PlayState no restaura el HUD, los filtros ni el BPM forzado).
 	var deathKomi:BaseCharacter = null;
 	var savedHud:Array<Dynamic> = [];
 	var savedCamFilters:Dynamic = null;
@@ -5844,7 +5829,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		}
 		else if (name == "deathConfirm")
 		{
-			// Original: nunca reproducia la animacion del personaje al confirmar, solo la de los sprites.
 			if (confirmDeathSprites()) return;
 		}
 
@@ -5856,9 +5840,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 			this.danceEvery = 99999;
 	}
 
-	// V-Slice no tiene GameOverSubState.darkBg: el fondo negro es una variable local de create().
-	// Se busca entre los miembros del substate (sprite fijo a camara y de pantalla completa);
-	// si no aparece, se crea uno propio detras de todo.
 	function findGameOverBg():FlxSprite
 	{
 		var go = GameOverSubState.instance;
@@ -5885,8 +5866,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		coolRetrySprite.anim.play(name, true);
 	}
 
-	// Emulacion de zoomFactor = 0: un sprite con scrollFactor 0 igual se escala con FlxCamera.zoom (alrededor del centro
-	// de la camara), asi que se lo contra-escala (1 / zoom) y se recoloca para que en pantalla quede en (sx, sy) a tamaño real.
 	function pinToScreen(spr:FlxSprite, sx:Float, sy:Float, z:Float):Void
 	{
 		var inv:Float = 1 / z;
@@ -5912,7 +5891,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 	{
 		super.onUpdate(event);
 
-		// El GameOverSubState le despacha el update a su boyfriend (este personaje) en cada frame.
 		if (deathActive) pinFixedSprites();
 	}
 
@@ -5920,7 +5898,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 	{
 		var ps = PlayState.instance;
 		var go = GameOverSubState.instance;
-		// Fuera del GameOverSubState (por ejemplo en el editor de personajes) no hay nada que armar.
 		if (ps == null || go == null) return;
 
 		deathActive = true;
@@ -5928,7 +5905,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		deathTimerManager = new FlxTimerManager();
 		go.add(deathTimerManager);
 
-		// El original copiaba los filtros de camHUD a la camara del juego; se guardan los propios para devolverlos al reintentar.
 		savedCamFilters = FlxG.camera.filters;
 		FlxG.camera.filters = ps.camHUD.filters;
 		go.targetCameraZoom *= FlxG.camera.zoom / 0.65;
@@ -5938,7 +5914,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		var darkBg:FlxSprite = findGameOverBg();
 		darkBg.alpha = 0;
 
-		// Barras negras laterales (en el original: zoomFactor = 0, scrollFactor 0, shouldDraw = true).
 		leftBlack = new FunkinSprite().makeSolidColor(400, FlxG.height, FlxColor.BLACK);
 		leftBlack.scrollFactor.set();
 		leftPos = {x: -400.0};
@@ -5953,12 +5928,9 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 
 		pinFixedSprites();
 
-		// Boyfriend (este personaje) por encima de las barras.
 		go.remove(this);
 		go.add(this);
 
-		// Komi se agrega al substate para dibujarse sobre las barras. Se saca de ahi en closeCallback
-		// (el substate se destruye al reintentar y se llevaria a Komi, que es del stage, con el).
 		var stage = ps.currentStage;
 		var komi:BaseCharacter = (stage != null) ? stage.getDad() : null;
 		if (komi != null)
@@ -5973,7 +5945,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		var goUP:Bool = AmScroll.isDown();
 		var dir:Float = goUP ? 1 : -1;
 
-		// El HUD queda tapado: se guarda su estado para restaurarlo (PlayState no lo hace al reintentar).
 		savedHud = [];
 		var hudObjs:Array<Dynamic> = [ps.healthBar, ps.iconP1, ps.iconP2];
 		for (obj in hudObjs)
@@ -5993,13 +5964,11 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 
 		FlxTween.tween(darkBg, {alpha: 0.75}, 1.25, {ease: FlxEase.backOut, startDelay: .5});
 
-		// FlxAtlasSprite -> FunkinSprite (acepta la ruta de Paths.animateAtlas directo en el constructor).
 		coolRetrySprite = new FunkinSprite(this.x + this.offset.x + 240, this.y + this.offset.y,
 			Paths.animateAtlas("characters/phonecall/tadano-phone-stand-death-text", "shared"));
 		coolRetrySprite.anim.addByFrameLabel("start", "start", 24, false);
 		coolRetrySprite.anim.addByFrameLabel("loop", "loop", 24, false);
 		coolRetrySprite.anim.addByFrameLabel("confirm", "confirm", 24, false);
-		// Original: onFinish.addOnce(...) (se consumia con cualquier animacion) y .anims.play (la propiedad es anim).
 		coolRetrySprite.anim.onFinish.add(function(n:String):Void
 		{
 			if (n == "start") playRetryAnim("loop");
@@ -6015,7 +5984,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 			coolRetrySprite.alpha = 1;
 			playRetryAnim("start");
 
-			// Si ya se confirmo (completeAll adelanta este timer) la musica de confirmacion ya esta sonando: no se toca.
 			if (go2.isEnding) return;
 
 			go2.startDeathMusic(0, false);
@@ -6028,7 +5996,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 
 		go.add(coolRetrySprite);
 
-		// V-Slice destruye el GameOverSubState al reintentar: se limpia lo que se le agrego y se restaura lo que se toco.
 		var prevClose = go.closeCallback;
 		go.closeCallback = function():Void
 		{
@@ -6037,7 +6004,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		};
 	}
 
-	// Devuelve true si habia sprites de muerte armados (si no, deathConfirm sigue el camino normal del personaje).
 	function confirmDeathSprites():Bool
 	{
 		var go = GameOverSubState.instance;
@@ -6057,7 +6023,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		FlxTween.tween(leftPos, {x: -300.0}, 3.5, {ease: FlxEase.backInOut});
 		FlxTween.tween(rightPos, {x: FlxG.width - 100.0}, 3.5, {ease: FlxEase.backInOut});
 
-		// FlxGradient devuelve un FlxSprite; (FlxColor.TRANSPERENT del original era un typo de TRANSPARENT).
 		blackGradient = FlxGradient.createGradientFlxSprite(FlxG.width, Std.int(FlxG.height * 2.25), [FlxColor.BLACK, FlxColor.BLACK, FlxColor.TRANSPARENT]);
 		blackGradient.scrollFactor.set();
 		gradPos = {y: -(FlxG.height * 2.0)};
@@ -6068,7 +6033,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		return true;
 	}
 
-	// Se ejecuta desde GameOverSubState.closeCallback (justo antes de que el substate se destruya).
 	function cleanupDeath():Void
 	{
 		if (!deathActive) return;
@@ -6079,7 +6043,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		if (deathKomi != null)
 		{
 			if (go != null) go.remove(deathKomi, true);
-			// Komi es DAD: BaseCharacter.onUpdate no hace nada mientras isDead (nadie se lo vuelve a poner en false).
 			deathKomi.isDead = false;
 			deathKomi = null;
 		}
@@ -6099,7 +6062,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		rightPos = null;
 		gradPos = null;
 
-		// Los sprites del substate se destruyen con el: solo se sueltan las referencias.
 		leftBlack = null;
 		rightBlack = null;
 		blackGradient = null;
@@ -6129,7 +6091,6 @@ class TadanoStandCharacter extends MultiSparrowCharacter
 		}
 	}
 
-	// Si se sale de la cancion desde el game over (BACK), el BPM forzado no debe quedar para los menus.
 	override function onDestroy(event:ScriptEvent):Void
 	{
 		if (bpmForced)
@@ -6158,7 +6119,6 @@ class SoloTimeNoteKind extends NoteKind
 			createCustomSplash(event.note);
 		event.doesNotesplash = false;
 
-    // fallaba tanto el no reproducir la animacion de canto que lo tuve que forzar :v
     event.stopPropagation();
 
 		super.onNoteHit(event);
@@ -6190,13 +6150,13 @@ class SoloTimeNoteKind extends NoteKind
 	{
 		var result = new NoteSplash(soloType);
 		result.zIndex = 355;
-		result.play(note.noteData.getDirection()); // vanilla: play(direction, ?variant:Int) — sin parametro de escala
+		result.play(note.noteData.getDirection());
 		PlayState.instance.playerStrumline.add(result);
 		return result;
 	}
 
 	var timeLeft:Float = 0;
-	var appearTime:Float = 500; // tiempo de aparicion en ms
+	var appearTime:Float = 500;
 
 	override function onUpdate(event:UpdateScriptEvent)
 	{
@@ -6217,7 +6177,6 @@ class SoloTimeNoteKind extends NoteKind
 	}
 }
 
-// como a mi no me funciona la nota para no reproducir animacion (noanim) creare una nueva de a huevo
 class NoAnimationNoteKind extends NoteKind
 {
   function new()
@@ -6225,7 +6184,6 @@ class NoAnimationNoteKind extends NoteKind
     super("noanimation", "no animation note", null, []);
   }
 
-  // misma logica que el SoloTime.onNoteHit por que si y me la pelas w
   override function onNoteHit(event:HitNoteScriptEvent)
   {
     event.stopPropagation();
@@ -6476,12 +6434,12 @@ class MainStageAmTake extends ScriptedStage
 		if (Save.instance.modOptions["shaders"])
 		{
 			highShader = new HighShader();
-			highShader.effectiveness = 0; // 0.25;
+			highShader.effectiveness = 0;
 			highFilter = new ShaderFilter(highShader);
 
 			trippyShader = new TrippyShader();
-			trippyShader.darkness = 0; // .55;
-			trippyShader.intensity = 0; // 5;
+			trippyShader.darkness = 0;
+			trippyShader.intensity = 0;
 			trippyFilter = new ShaderFilter(trippyShader);
 
 			filterCam = FlxG.camera;
@@ -6523,7 +6481,6 @@ class MainStageAmTake extends ScriptedStage
 	var _zfBaseCX = [];
 	var _zfBaseCY = [];
 
-	// Guarda escala y centro originales (llamar cuando el stage ya esta armado).
 	function setupZoomFactorProps()
 	{
 		_zfSprites = [];
@@ -6567,7 +6524,6 @@ class MainStageAmTake extends ScriptedStage
 				var scrollX = cam.scroll.x * spr.scrollFactor.x;
 				var scrollY = cam.scroll.y * spr.scrollFactor.y;
 
-				// Centro original en coordenadas de vista -> escalado respecto al centro de la camara.
 				var cx = halfW + ((_zfBaseCX[i] - scrollX) - halfW) * r + scrollX;
 				var cy = halfH + ((_zfBaseCY[i] - scrollY) - halfH) * r + scrollY;
 
@@ -6579,10 +6535,6 @@ class MainStageAmTake extends ScriptedStage
 		}
 	}
 
-	// ------------------------------------------------------------------
-	// RIM LIGHT
-	// ------------------------------------------------------------------
-
 	/**
 	 * PlayState agrega los personajes DESPUES de crear el stage, por eso el rim
 	 * se engancha aqui y no en buildStage().
@@ -6593,8 +6545,6 @@ class MainStageAmTake extends ScriptedStage
 		applyRim(character);
 	}
 
-	// Red de seguridad por si addCharacter no llegara a disparar el override.
-	// applyRim() es idempotente, asi que llamarlo dos veces no hace nada raro.
 	override function onCountdownStart(event)
 	{
 		super.onCountdownStart(event);
@@ -6627,10 +6577,6 @@ class MainStageAmTake extends ScriptedStage
 		}
 	}
 
-	// ------------------------------------------------------------------
-	// CLEANUP
-	// ------------------------------------------------------------------
-
 	function clearFilters()
 	{
 		if (filterCam != null)
@@ -6652,10 +6598,6 @@ class MainStageAmTake extends ScriptedStage
 		super.onDestroy(e);
 	}
 
-	// ------------------------------------------------------------------
-	// SPOTLIGHTS
-	// ------------------------------------------------------------------
-
 	function createAllSpotlights()
 	{
 		for (prop in namedProps)
@@ -6666,10 +6608,6 @@ class MainStageAmTake extends ScriptedStage
 				add(uhuh);
 			}
 	}
-
-	// ------------------------------------------------------------------
-	// UPDATE
-	// ------------------------------------------------------------------
 
 	override function onUpdate(event)
 	{
@@ -6720,10 +6658,6 @@ class MainStageAmTake extends ScriptedStage
 	var crowd2Right:Bool = false;
 	var trippyMult:Float = 1;
 
-	// ------------------------------------------------------------------
-	// HELPERS
-	// ------------------------------------------------------------------
-
 	function tweenTo(obj, field:String, to:Float, time:Float, ease)
 	{
 		var from:Float = Reflect.getProperty(obj, field);
@@ -6736,10 +6670,6 @@ class MainStageAmTake extends ScriptedStage
 		if (popUps != null)
 			popUps.visible = how;
 	}
-
-	// ------------------------------------------------------------------
-	// BEATS
-	// ------------------------------------------------------------------
 
 	override function onBeatHit(event)
 	{
@@ -6795,21 +6725,18 @@ class MainStageAmTake extends ScriptedStage
 				{
 					dadRim.stopFade();
 					dadRim.threshold = 0;
-					// projectGF();
 				}
 			}
 
 			if (event.beat == 65)
 			{
 				itsSoloTime = true;
-				// setLight();
 				projectGF();
 			}
 
 			if (event.beat == 72)
 			{
 				itsSoloTime = true;
-				// setLight();
 				putProjectors(0xFF99FFFF, .45, .7);
 				if (Save.instance.modOptions["shaders"])
 				{
@@ -6826,7 +6753,6 @@ class MainStageAmTake extends ScriptedStage
 				{
 					bfRim.threshold = 0.4;
 					bfRim.fadeThreshold(0.0, 0.35, FlxEase.circOut);
-					// projectGF();
 				}
 			}
 
@@ -6864,7 +6790,6 @@ class MainStageAmTake extends ScriptedStage
 				allowedColorChange = 1;
 				cameraDance = true;
 				setLight();
-				// setSmokeVisible(true);
 				for (smoke in smokes)
 					tweenTo(smoke, 'alpha', 0, 6, FlxEase.smootherStepInOut);
 
@@ -6910,10 +6835,6 @@ class MainStageAmTake extends ScriptedStage
 			}
 		}
 	}
-
-	// ------------------------------------------------------------------
-	// LUCES
-	// ------------------------------------------------------------------
 
 	var lightColors = [FlxColor.WHITE, 0xFF00F9FF, 0xFF2BFF00, 0xFFFF4F00, 0xFFCC00FF, 0xFFFF0064];
 	var currentLightsColor = null;
@@ -6999,7 +6920,6 @@ class MainStageAmTake extends ScriptedStage
 				dadRim.strength = .8;
 				dadRim.threshold = 0.1;
 
-				// El rim "pulsa" en cada cambio de luz y se apaga en 0.4s.
 				bfRim.fadeThreshold(0.0, 0.4, FlxEase.circOut);
 				dadRim.fadeThreshold(0.0, 0.4, FlxEase.circOut);
 			}
@@ -7226,11 +7146,8 @@ class RimLight
 
 		try
 		{
-			// Le da al shader los limites del frame actual (y activa
-			// useRenderTexture si el personaje es Animate Atlas).
 			shader.attachedSprite = character;
 
-			// Sparrow/Packer: el frame cambia en cada animacion, hay que avisarle al shader.
 			if (!animated)
 				character.animation.onFrameChange.add(function(name, frameNumber, frameIndex)
 				{
@@ -7278,7 +7195,7 @@ class SpotlightAccesories extends FunkinSprite
 		blend = BlendMode.MULTIPLY;
 		updateHitbox();
 
-		origin.set(80 / 2, -158 / 2); // TO MAKE THEN LOOK ATTACHED TO MAIN SPR
+		origin.set(80 / 2, -158 / 2);
 
 		light = new FunkinSprite(prop.x, prop.y);
 		light.frames = Paths.getSparrowAtlas("stages/mainStageAmTake/spotlight", "shared");
@@ -7288,7 +7205,7 @@ class SpotlightAccesories extends FunkinSprite
 		light.scrollFactor.set(prop.scrollFactor.x, prop.scrollFactor.y);
 		alpha = light.alpha = 0;
 		light.updateHitbox();
-		light.origin.set(290, 80); // TO MAKE THEN LOOK ATTACHED TO MAIN SPR
+		light.origin.set(290, 80);
 	}
 
 	/** Anima el angulo del spotlight (cancela el tween anterior de este mismo spotlight). */
@@ -7334,7 +7251,6 @@ class SpotlightAccesories extends FunkinSprite
 
 class ServiceEnteranceStage extends Stage
 {
-	// V-Slice no trae estas opciones en Preferences; cambialas aca (o conectalas a tu modulo de opciones).
 	var useShaders = true;
 	var lowQuality = false;
 
@@ -7348,16 +7264,16 @@ class ServiceEnteranceStage extends Stage
 	var dadRim = null;
 	var bfBaseColor = 0xFFFFF56D;
 	var dadBaseColor = 0xFFFFFFFF;
-	var bfRimAmt = 0.0; // 0..1, reemplaza al viejo "rimAlphaV"
+	var bfRimAmt = 0.0;
 	var dadRimAmt = 0.0;
 	var bfRimTween = null;
 	var dadRimTween = null;
 
-	var carInterruptable = true; // si el auto de la izquierda puede reiniciarse
+	var carInterruptable = true;
 	var car2Interruptable = true;
 
 	var lastChange = 0;
-	var changeInterval = 8; // no cambia hasta que pasen AL MENOS estos beats
+	var changeInterval = 8;
 
 	var mist0 = null;
 	var mist1 = null;
@@ -7391,7 +7307,6 @@ class ServiceEnteranceStage extends Stage
 
 		PauseSubState.musicSuffix = '-amtake1';
 
-		// Reinicio de estado (la instancia del stage puede reutilizarse entre partidas).
 		_ready = false;
 		_timer = 0.0;
 		_flickerTime = 0.0;
@@ -7404,7 +7319,7 @@ class ServiceEnteranceStage extends Stage
 
 	function makeMist(asset, x, y, scroll, z, alpha, velX, scale)
 	{
-		var mist = new FlxBackdrop(Paths.image('stages/serviceEnterance/' + asset), 0x01); // 0x01 = FlxAxes.X
+		var mist = new FlxBackdrop(Paths.image('stages/serviceEnterance/' + asset), 0x01);
 		mist.setPosition(x, y);
 		mist.scrollFactor.set(scroll, scroll);
 		mist.zIndex = z;
@@ -7417,15 +7332,13 @@ class ServiceEnteranceStage extends Stage
 		return mist;
 	}
 
-	// Props marcados con "lowQuality": true en serviceEnterance.json (el juego ignora ese campo, asi que la lista va aca).
 	var _lowQualityProps = ['bulbb', 'vendingLight', 'fgBoxes', 'rain', 'fgMist', 'phillyCars', 'phillyCars2'];
 
-	// Quita del stage (y destruye) los props lowQuality apenas termina buildStage().
 	function removeLowQualityProps()
 	{
 		var names = _lowQualityProps;
-		var boppers = Reflect.field(this, 'boppers'); // Array<Bopper> privado de Stage
-		var named = Reflect.field(this, 'namedProps'); // Map<String, StageProp> privado de Stage
+		var boppers = Reflect.field(this, 'boppers');
+		var named = Reflect.field(this, 'namedProps');
 
 		var i = 0;
 		while (i < names.length)
@@ -7448,7 +7361,6 @@ class ServiceEnteranceStage extends Stage
 	{
 		super.buildStage();
 
-		// Props con "lowQuality": true en el JSON: solo existen si lowQuality esta apagado.
 		if (Save.instance.modOptions["lowQuality"])
 		{
 			removeLowQualityProps();
@@ -7462,12 +7374,8 @@ class ServiceEnteranceStage extends Stage
 		mist4 = makeMist('mistBack', -650, -250, 0.8, 5, 1, 40, 0.7);
 		mist5 = makeMist('mistMid', -650, -400, 0.5, 7, 1, 20, 1.1);
 
-		refresh(); // Aplica los z-index.
+		refresh();
 	}
-
-	// ---------------------------------------------------------------
-	// Setup que necesita a los personajes (reemplaza a stageFullConstruct)
-	// ---------------------------------------------------------------
 
 	override function onCountdownStart(event)
 	{
@@ -7477,8 +7385,6 @@ class ServiceEnteranceStage extends Stage
 		resetCar(true, true);
 	}
 
-	// Escala un color RGB hacia negro segun amt (0 = negro/invisible, 1 = color base).
-	// Asi apagamos/prendemos el rim sin tocar shader.strength (ver nota arriba).
 	function scaleColor(base, amt)
 	{
 		var k = Math.max(0, Math.min(1, amt));
@@ -7494,14 +7400,13 @@ class ServiceEnteranceStage extends Stage
 		rim.setAdjustColor(-5, -26, 0, -16);
 		rim.angle = 115;
 		rim.distance = 20;
-		rim.strength = 1; // fijo: 1 = solo el borde. NO bajar a 0 (ver nota arriba).
-		rim.threshold = 0.1; // default de V-Slice, filtra pixeles oscuros/outlines
-		rim.color = 0xFF000000; // arranca "apagado" (negro = sin aporte visible)
+		rim.strength = 1;
+		rim.threshold = 0.1;
+		rim.color = 0xFF000000;
 
 		char.shader = rim;
 		rim.attachedSprite = char;
 
-		// Para sprites sparrow, el shader necesita que le avisen cuando cambia el frame.
 		if (!char.isAnimate)
 		{
 			char.animation.onFrameChange.add(function(name, frameNum, frameIndex)
@@ -7594,7 +7499,6 @@ class ServiceEnteranceStage extends Stage
 		var redOverlay = getNamedProp('fgRedOverlay');
 		if (redOverlay != null)
 		{
-			// type: 4 = PINGPONG
 			FlxTween.tween(redOverlay, {alpha: 0.5}, 2, {ease: FlxEase.sineInOut, type: 4});
 		}
 
@@ -7629,10 +7533,6 @@ class ServiceEnteranceStage extends Stage
 
 		_sounds = [rainSndAmbience, carSndAmbience, carRide1, carRide2];
 	}
-
-	// ---------------------------------------------------------------
-	// Update
-	// ---------------------------------------------------------------
 
 	override function onUpdate(event)
 	{
@@ -7693,21 +7593,15 @@ class ServiceEnteranceStage extends Stage
 		}
 	}
 
-	// ---------------------------------------------------------------
-	// Beats (autos + rim light en dadbattle)
-	// ---------------------------------------------------------------
-
 	override function onBeatHit(event)
 	{
 		super.onBeatHit(event);
 
 		if (!_ready) return;
 
-		// Intenta pasar un auto cuando se pueda.
 		if (FlxG.random.bool(15) && event.beat != (lastChange + changeInterval) && carInterruptable)
 			driveCar(getNamedProp('phillyCars'), carRide1, false);
 
-		// Tambien uno a la derecha (sin logica de semaforo).
 		if (FlxG.random.bool(15) && event.beat != (lastChange + changeInterval) && car2Interruptable)
 			driveCar(getNamedProp('phillyCars2'), carRide2, true);
 
@@ -7729,10 +7623,6 @@ class ServiceEnteranceStage extends Stage
 			}
 		}
 	}
-
-	// ---------------------------------------------------------------
-	// Autos
-	// ---------------------------------------------------------------
 
 	function pauseCars()
 	{
@@ -7789,7 +7679,6 @@ class ServiceEnteranceStage extends Stage
 		else carInterruptable = true;
 	}
 
-	// back = false -> auto de la izquierda (va hacia la derecha); back = true -> el de la derecha (vuelve).
 	function driveCar(sprite, ride, back)
 	{
 		if (Save.instance.modOptions["lowQuality"] || sprite == null) return;
@@ -7802,12 +7691,10 @@ class ServiceEnteranceStage extends Stage
 		var variant = FlxG.random.int(1, 4);
 		sprite.animation.play('car' + Std.string(variant));
 
-		// Offset manual: los offsets de props del stage no funcionaban para estos sprites.
 		var offsetX = 0;
 		var offsetY = 0;
 		var duration = 2.0;
 
-		// Velocidad (y offset) distintos segun el tipo de auto.
 		if (variant == 1)
 		{
 			offsetX = 0;
@@ -7883,10 +7770,6 @@ class ServiceEnteranceStage extends Stage
 		});
 	}
 
-	// ---------------------------------------------------------------
-	// Pausa / game over / limpieza
-	// ---------------------------------------------------------------
-
 	override function onPause(event)
 	{
 		super.onPause(event);
@@ -7919,7 +7802,6 @@ class ServiceEnteranceStage extends Stage
 	{
 		super.onGameOver(event);
 
-		// Que el shader de lluvia no se vea sobre la pantalla de game over.
 		FlxG.camera.filters = [];
 		if (getBoyfriend() != null) getBoyfriend().shader = null;
 	}
@@ -7986,7 +7868,6 @@ class ServiceEnteranceStage extends Stage
 
 	override function onDestroy(event)
 	{
-		// Primero limpiar (necesita los props con nombre), luego dejar que Stage destruya todo.
 		cleanupRuntime();
 		super.onDestroy(event);
 	}
@@ -8011,9 +7892,6 @@ class XMasCityHallAmTakeStage extends ScriptedStage
 	var leftTV;
 	var rightTV;
 
-	// --- snow overlay shader, ported from xMasCityMallAmTake.script ---
-	// NOTE: V-Slice has no `Preferences.shaders` toggle, so the check reads the
-	// QualityOptions save (Save.instance.modOptions["shaders"]) instead.
 	var sshh = "
 #pragma header
 
@@ -8165,9 +8043,6 @@ void main()
     add(rightTV);
 		}
 
-		// snow overlay build (was onCreatePost in xMasCityMallAmTake.script; there's no
-		// "post" hook on stages here, so this just runs at the end of buildStage() instead,
-		// same as leftTV/rightTV above)
 		if (Save.instance.modOptions["shaders"])
 		{
 		snowShader = new FlxRuntimeShader(sshh);
@@ -8221,7 +8096,6 @@ void main()
         boppersBop();
     }
 
-		// --- ported from funnies.script, tied to the "cocoa" song only ---
 		var play = PlayState.instance;
 		if (play == null || play.currentSong == null || play.currentSong.id != "cocoa-animania" || play.isPlayerDying)
 			return;
@@ -8250,10 +8124,8 @@ void main()
 				screeen.screenCenter();
 				screeen.alpha = 0;
 				add(screeen);
-				// preAdd() on this stage group resets `cameras` on anything added to it,
-				// so the HUD camera has to be assigned AFTER add(), not before
 				screeen.camera = play.camHUD;
-				screeen.blend = BlendMode.OVERLAY; // was raw `blend = 11` in Psych; double check this is the look you want, the int didn't map 1:1 to an OpenFL BlendMode
+				screeen.blend = BlendMode.OVERLAY;
 				FlxTween.tween(screeen, {alpha: 1}, 4, {ease: FlxEase.sineOut});
 
 				var screeeen = new FunkinSprite();
@@ -8276,8 +8148,6 @@ void main()
 		if (play == null || play.isChartingMode)
 			return;
 
-		// Psych's `skipCountDown = true` -> V-Slice equivalent is cancelling the
-		// countdown event itself; this still lets the rest of the function run.
     skipCountdown();
 		event.cancel();
 
@@ -8285,7 +8155,6 @@ void main()
 
 		var gf = getGirlfriend();
 		if (gf != null)
-			// Psych's `requiredCameraPos` doesn't exist here, it's `cameraFocusPoint`
 			play.tweenCameraToPosition(gf.cameraFocusPoint.x, gf.cameraFocusPoint.y, 0);
 
 		play.tweenCameraZoom(1.4, 0, false);
@@ -8333,16 +8202,21 @@ void main()
 			return;
 
 		FlxTween.tween(play.opponentStrumline, {x: play.opponentStrumline.x - 40, alpha: 0.75}, 1.75, {ease: FlxEase.sineOut});
-		#if !mobile
+		if (AmMlpc.playerStrum())
+		{
 		FlxTween.tween(play.playerStrumline, {x: play.playerStrumline.x - FlxG.width / 10 + 20}, 1.55, {ease: FlxEase.backOut});
-		#end
+		}
 
-		#if !mobile
+		if (AmMlpc.oppScale())
+		{
 		FlxTween.num(play.opponentStrumline.strumlineScale.x, .95, 1.75, {ease: FlxEase.sineOut},
 			(value) -> play.opponentStrumline.strumlineScale.set(value, value));
+		}
+		if (AmMlpc.playerStrum())
+		{
 		FlxTween.num(play.playerStrumline.strumlineScale.x, 1.05, 1.55, {ease: FlxEase.backOut},
 			(value) -> play.playerStrumline.strumlineScale.set(value, value));
-		#end
+		}
 	}
 
 	function moveOut()
@@ -8353,16 +8227,21 @@ void main()
 
 
 		FlxTween.tween(play.opponentStrumline, {x: play.opponentStrumline.x + 40, alpha: 1}, 4.65, {ease: FlxEase.backOut});
-		#if !mobile
+		if (AmMlpc.playerStrum())
+		{
 		FlxTween.tween(play.playerStrumline, {x: play.playerStrumline.x + FlxG.width / 10 - 20}, 4.45, {ease: FlxEase.cubeOut});
-		#end
+		}
 
-		#if !mobile
+		if (AmMlpc.oppScale())
+		{
 		FlxTween.num(play.opponentStrumline.strumlineScale.x, 1, 4.65, {ease: FlxEase.backOut},
 			(value) -> play.opponentStrumline.strumlineScale.set(value, value));
+		}
+		if (AmMlpc.playerStrum())
+		{
 		FlxTween.num(play.playerStrumline.strumlineScale.x, 1, 4.45, {ease: FlxEase.cubeOut},
 			(value) -> play.playerStrumline.strumlineScale.set(value, value));
-		#end
+		}
 	}
 
 	override function onNoteHit(e)
@@ -8399,11 +8278,6 @@ class XMasCityHallAmTakeDarkStage extends ScriptedStage
 		super('xMasCityMallAmTakeDark');
 	}
 
-	// ------------------------------------------------------------------
-	// Opciones de rendimiento.
-	// V-Slice NO tiene Preferences.lowQuality ni Preferences.shaders.
-	// Conecta aca tu PerformanceSettings si quieres que sean configurables.
-	// ------------------------------------------------------------------
 	function lowQualityMode():Bool
 	{
 		return Save.instance.modOptions["lowQuality"] == true;
@@ -8414,9 +8288,6 @@ class XMasCityHallAmTakeDarkStage extends ScriptedStage
 		return Save.instance.modOptions["shaders"] == true;
 	}
 
-	// ------------------------------------------------------------------
-	// Estado
-	// ------------------------------------------------------------------
 	var railBoppers = [];
 	var leftTV = null;
 	var rightTV = null;
@@ -8430,8 +8301,6 @@ class XMasCityHallAmTakeDarkStage extends ScriptedStage
 	var snowBaseScaleX:Float = 1;
 	var snowBaseScaleY:Float = 1;
 
-	// Reemplazo de FunkinSprite.zoomFactor del fork (no existe en V-Slice).
-	// 1.0 = el zoom de camara afecta normal; 0.0 = el zoom no afecta.
 	var snowZoomFactor:Float = 0.35;
 
 	var snowFrag:String = "
@@ -8489,9 +8358,6 @@ void main()
     gl_FragColor = vec4(flakeColor * alpha, alpha);
 }";
 
-	// ------------------------------------------------------------------
-	// Ciclo de vida
-	// ------------------------------------------------------------------
 	override function onCreate(e)
 	{
 		snowShader = null;
@@ -8509,11 +8375,6 @@ void main()
 	{
 		if (PlayState.instance == null)
 			return;
-
-		if (Save.instance.modOptions["lowQuality"])
-		{
-			removeLowQualityProps();
-		}
 
 		railBoppers = [];
 		leftTV = null;
@@ -8545,7 +8406,6 @@ void main()
 					if (FlxG.random.bool(15))
 						leftTV.anim.play("OOGA BOOGA", true);
 					else
-						// V-Slice: las animaciones se buscan por String, no por Int.
 						leftTV.anim.play(Std.string(FlxG.random.int(0, 5)), true);
 				}
 				else if (name == "OOGA BOOGA")
@@ -8586,6 +8446,11 @@ void main()
 		}
 
 		refresh();
+
+		if (Save.instance.modOptions["lowQuality"])
+		{
+			removeLowQualityProps();
+		}
 	}
 
 	override function onSongLoaded(event)
@@ -8609,7 +8474,6 @@ void main()
 		shadeObject(getGirlfriend());
 		shadeObject(getBoyfriend());
 
-		// fgSnow NO es API del engine: es una variable de tu script de gf-christmas.
 		var gf = getGirlfriend();
 		if (gf != null)
 		{
@@ -8637,9 +8501,6 @@ void main()
 			shadeObject(getNamedProp(name));
 	}
 
-	// ------------------------------------------------------------------
-	// Overlay de nieve (antes: xMasCityMallAmTakeDark.script)
-	// ------------------------------------------------------------------
 	function createSnowOverlay():Void
 	{
 		if (!shadersEnabled())
@@ -8680,15 +8541,11 @@ void main()
 		snowTime += event.elapsed;
 		snowShader.setFloat("uTime", snowTime);
 
-		// Emulacion de zoomFactor: lerp(1 / zoom, 1, factor).
 		var zoom = FlxG.camera.zoom;
 		var f = (1 - snowZoomFactor) / zoom + snowZoomFactor;
 		snowSprite.scale.set(snowBaseScaleX * f, snowBaseScaleY * f);
 	}
 
-	// ------------------------------------------------------------------
-	// Beats / boppers
-	// ------------------------------------------------------------------
 	override function onBeatHit(event)
 	{
 		super.onBeatHit(event);
@@ -8721,9 +8578,6 @@ void main()
 		new FlxTimer().start(6 / 24, function(t) { p.y = bopperY; });
 	}
 
-	// ------------------------------------------------------------------
-	// Notas
-	// ------------------------------------------------------------------
 	override function onNoteHit(e)
 	{
 		super.onNoteHit(e);
@@ -8806,7 +8660,7 @@ class XMasCityHallNastyAmTakeStage extends ScriptedStage
 	{
 		super.buildStage();
 
-		if (Save.instance.modOptions["lowQuality"])
+		if (!Save.instance.modOptions["lowQuality"])
 		{
 			removeLowQualityProps();
 		}
@@ -8857,7 +8711,7 @@ class XMasCityHallNastyAmTakeStage extends ScriptedStage
 		fuckingCoolAndAwesomeSkull.scrollFactor.set(.9, .9);
 		fuckingCoolAndAwesomeSkull.setGraphicSize(750, 700);
 		fuckingCoolAndAwesomeSkull.flipX = true;
-		fuckingCoolAndAwesomeSkull.alpha = 0; // 0.075;
+		fuckingCoolAndAwesomeSkull.alpha = 0;
 		fuckingCoolAndAwesomeSkull.blend = BlendMode.ADD;
 		fuckingCoolAndAwesomeSkull.animation.onFinish.add((name:String) -> FlxTween.tween(fuckingCoolAndAwesomeSkull, {alpha: 0.0}, .35,
 			{onComplete: _ -> fuckingCoolAndAwesomeSkull.kill(), ease: FlxEase.smootherStepInOut}));
@@ -8905,7 +8759,6 @@ class XMasCityHallNastyAmTakeStage extends ScriptedStage
 	{
 		super.onBeatHit(event);
 
-		//trace(event.beat);
 		switch (event.beat)
 		{
 			case 8:
@@ -8936,7 +8789,7 @@ class XMasCityHallNastyAmTakeStage extends ScriptedStage
 		if (PlayState.instance.isPlayerDying)
 			return;
 
-		if (Save.instance.modOptions["lowQuality"])
+		if (!Save.instance.modOptions["lowQuality"])
 			return;
 
 		if (Conductor.instance.currentBeat > 92)
@@ -8946,7 +8799,6 @@ class XMasCityHallNastyAmTakeStage extends ScriptedStage
 			for (i in 0...hangers.length)
 				hangers[i][0].offset.y = FlxMath.fastSin(songPos / 1.5 * hangers[i][1]) * 40;
 		}
-		// getBoyfriend().x -= 50 * event.elapsed;
 	}
 
 	var _lowQualityProps = ['ceiling', 'hangRUNMO', 'hangCRUSHERS', 'hangZONA', 'hangMUFFIN', 'hangDUDE', 'candy', 'gust'];
@@ -8979,11 +8831,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		super('phoneCallStreet');
 	}
 
-	// ------------------------------------------------------------------
-	// Opciones de rendimiento.
-	// V-Slice NO tiene Preferences.lowQuality ni Preferences.shaders:
-	// se leen de las opciones del mod (QualityOptions).
-	// ------------------------------------------------------------------
 	function lowQualityMode():Bool
 	{
 		return Save.instance.modOptions["lowQuality"] == true;
@@ -8994,9 +8841,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		return Save.instance.modOptions["shaders"] == true;
 	}
 
-	// ------------------------------------------------------------------
-	// Estado: stage
-	// ------------------------------------------------------------------
 	var bloomShader:BloomShader = null;
 	var bloomFilter:ShaderFilter = null;
 	var filterCam = null;
@@ -9005,12 +8849,9 @@ class PhoneCallStreetStage extends ScriptedStage
 
 	var leafs = [];
 	var leafBaseScale = [];
-	var leafZoomFactor = []; // reemplazo de FunkinSprite.zoomFactor del fork (no existe en V-Slice)
+	var leafZoomFactor = [];
 	var leafsBounds = [-1500, 1500, -150, 50];
 
-	// ------------------------------------------------------------------
-	// Estado: cancion (antes: phone-call.script)
-	// ------------------------------------------------------------------
 	var ps = null;
 
 	var seenCountdown:Bool = false;
@@ -9026,7 +8867,6 @@ class PhoneCallStreetStage extends ScriptedStage
 
 	var timers = [];
 
-	// bases del HUD / strumlines (para poder reintentar la cancion)
 	var baseOppX:Float = 0;
 	var baseOppY:Float = 0;
 	var basePlrX:Float = 0;
@@ -9036,14 +8876,9 @@ class PhoneCallStreetStage extends ScriptedStage
 	var baseIcon1Y:Float = 0;
 	var baseIcon2Y:Float = 0;
 
-	// escalas de las strumlines (SUPUESTO: changeMode(false, x) del fork = strumlineScale)
 	var PLAYER_STRUM_SCALE:Float = 1.05;
 	var OPPONENT_STRUM_SCALE:Float = 0.95;
 
-	// ------------------------------------------------------------------
-	// Modchart minimo (reemplazo de Modchart.* del fork: V-Slice no lo tiene).
-	// lane: 0 = oponente, 1 = jugador. Solo lo que usa esta cancion: tanWave, shake y scale.
-	// ------------------------------------------------------------------
 	var mcTan = [0.0, 0.0];
 	var mcShake = [0.0, 0.0];
 	var mcScale = [1.0, 1.0];
@@ -9052,15 +8887,13 @@ class PhoneCallStreetStage extends ScriptedStage
 	var mcTime:Float = 0;
 	var mcPostFn = null;
 	var mcWasActive = [false, false];
+	var mcAlphaIsOne = [false, false];
 	var mcTanAmp:Float = 45.0;
 	var mcShx = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 	var mcShy = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 	var mcRecX = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 	var mcRecY = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
 
-	// ------------------------------------------------------------------
-	// Ciclo de vida: stage
-	// ------------------------------------------------------------------
 	override function buildStage():Void
 	{
 		leafs = [];
@@ -9074,7 +8907,6 @@ class PhoneCallStreetStage extends ScriptedStage
 			removeLowQualityProps();
 		}
 
-		// Bloom sobre la camara del juego (antes: FlxG.camera.setFilters).
 		if (shadersEnabled())
 		{
 			bloomShader = new BloomShader();
@@ -9083,7 +8915,6 @@ class PhoneCallStreetStage extends ScriptedStage
 			filterCam.filters = [bloomFilter];
 		}
 
-		// Cielo con scroll infinito en X.
 		bgSky = new FlxBackdrop(Paths.image('stages/phoneCallStreet/sky'), 0x01, -1885.85, -831.5);
 		bgSky.scrollFactor.set(0.1, 0.1);
 		bgSky.velocity.x = 20;
@@ -9096,15 +8927,12 @@ class PhoneCallStreetStage extends ScriptedStage
 		{
 			var width = 1882.6 * 3;
 			lightShade.scrollFactor.set(0., 1.);
-			lightShade.blend = BlendMode.ADD; // el fork usaba `blend = 0` (ADD)
+			lightShade.blend = BlendMode.ADD;
 			lightShade.alpha = 0.1;
 			lightShade.scale.x = width;
 			lightShade.scale.y *= 2;
 			lightShade.updateHitbox();
 		}
-
-		// NOTA: se quito `overlay-all.shouldDraw = true` (propiedad exclusiva del fork,
-		// en V-Slice todos los props se dibujan siempre).
 
 		for (prop in namedProps)
 			if (prop.name.indexOf("stand-") != -1)
@@ -9149,9 +8977,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		}
 	}
 
-	// ------------------------------------------------------------------
-	// Hojas
-	// ------------------------------------------------------------------
 	function spawnLeaf():Void
 	{
 		var leaf = new FunkinSprite();
@@ -9173,7 +8998,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		add(leaf);
 	}
 
-	// Reinicia una hoja arriba de la pantalla con valores random.
 	function resetLeaf(i:Int):Void
 	{
 		var leaf = leafs[i];
@@ -9212,7 +9036,6 @@ class PhoneCallStreetStage extends ScriptedStage
 			if (leaf.y > 1550)
 				resetLeaf(i);
 
-			// Emulacion de zoomFactor: lerp(1 / zoom, 1, factor).
 			if (zoom != 0)
 			{
 				var zf = leafZoomFactor[i];
@@ -9222,9 +9045,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		}
 	}
 
-	// ------------------------------------------------------------------
-	// Eventos del stage
-	// ------------------------------------------------------------------
 	override function onUpdate(event)
 	{
 		super.onUpdate(event);
@@ -9248,7 +9068,6 @@ class PhoneCallStreetStage extends ScriptedStage
 			spawnLeaf();
 	}
 
-	// Equivale a skipCountDown = true del fork (y a onCreatePost, que aca corre al empezar la cuenta atras).
 	override function onCountdownStart(event)
 	{
 		super.onCountdownStart(event);
@@ -9257,7 +9076,7 @@ class PhoneCallStreetStage extends ScriptedStage
 		if (ps == null)
 			return;
 
-		resetPhoneState(); // idempotente: tambien sirve para los reintentos
+		resetPhoneState();
 
 		if (!ps.isChartingMode)
 		{
@@ -9273,7 +9092,6 @@ class PhoneCallStreetStage extends ScriptedStage
 			popUps.visible = how;
 	}
 
-	// Arranca la cancion sin cuenta atras (Countdown.skipCountdown() no respeta startTimestamp).
 	function skipCountdown()
 	{
 		Countdown.stopCountdown();
@@ -9282,7 +9100,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		Conductor.instance.update(ps.startTimestamp);
 	}
 
-	// El PlayState NO se recrea al reintentar: hay que devolver todo al estado inicial.
 	override function onSongRetry(event)
 	{
 		super.onSongRetry(event);
@@ -9291,7 +9108,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		if (ps == null)
 			return;
 
-		// El stage ya se reseteo; si estaban los personajes "stand", se vuelven a poner los originales.
 		if (standActive)
 			swapBack();
 
@@ -9302,7 +9118,6 @@ class PhoneCallStreetStage extends ScriptedStage
 	{
 		super.onSongStart(event);
 		setComboPopUpsVisible(false);
-		// (el fork tenia esto en onStartSong; los iconos los maneja cada personaje)
 		if (ps != null && ps.iconP1 != null && !ps.isMinimalMode)
 		{
 			ps.iconP1.bopEvery = 16;
@@ -9328,7 +9143,7 @@ class PhoneCallStreetStage extends ScriptedStage
 		}
 
 		if (ps != null && introText != null)
-			ps.remove(introText, true); // ya no esta en el stage: Stage.onDestroy no lo limpiaria de PlayState
+			ps.remove(introText, true);
 
 		leafs = [];
 		leafBaseScale = [];
@@ -9348,14 +9163,10 @@ class PhoneCallStreetStage extends ScriptedStage
 			filterCam.filters = null;
 	}
 
-	// ------------------------------------------------------------------
-	// Estado inicial de la cancion (onCreatePost del script original)
-	// ------------------------------------------------------------------
 	function resetPhoneState():Void
 	{
 		cancelTimers();
 
-		// Subtitulos con la fuente del mod.
 		styleSubtitles();
 
 		if (ps.isMinimalMode)
@@ -9381,13 +9192,11 @@ class PhoneCallStreetStage extends ScriptedStage
 			baseIcon2Y = ps.iconP2.y;
 		}
 
-		// --- HUD ---
 		FlxTween.cancelTweensOf(ps.camHUD);
 		ps.camHUD.alpha = 0;
 		ps.camHUD.zoom = 1;
 		ps.disableKeys = true;
 
-		// healthBar.flipped y el updatePosition de los iconos los maneja CurvedHealthBarModule / cada personaje.
 		for (obj in [ps.healthBar, ps.healthBarBG, ps.iconP1, ps.iconP2])
 		{
 			if (obj != null)
@@ -9402,7 +9211,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		ps.iconP2.y = baseIcon2Y;
 		setCurvedBarAlpha(1);
 
-		// --- pantalla negra + barras cinematicas (en camCutscene: no les afecta el zoom de camGame) ---
 		removeSprite(blackScreenSpr);
 		blackScreenSpr = new FunkinSprite();
 		blackScreenSpr.makeSolidColor(Std.int(FlxG.width * 3), Std.int(FlxG.height * 3), FlxColor.BLACK);
@@ -9437,7 +9245,6 @@ class PhoneCallStreetStage extends ScriptedStage
 
 		ps.refresh();
 
-		// --- strumlines ---
 		for (s in [ps.opponentStrumline, ps.playerStrumline])
 			FlxTween.cancelTweensOf(s);
 
@@ -9450,12 +9257,12 @@ class PhoneCallStreetStage extends ScriptedStage
 		ps.opponentStrumline.y = baseOppY;
 
 		ps.playerStrumline.alpha = 0;
-		#if !mobile
+		if (AmMlpc.playerStrum())
+		{
 		ps.playerStrumline.x = basePlrX - FlxG.width / 2;
-		#end
+		}
 		ps.playerStrumline.y = basePlrY;
 
-		// --- modchart ---
 		mcReset();
 
 		if (mcPostFn == null)
@@ -9467,7 +9274,6 @@ class PhoneCallStreetStage extends ScriptedStage
 			FlxG.signals.postUpdate.add(mcPostFn);
 		}
 
-		// --- escena ---
 		var gf = currentStageGf();
 		if (gf != null)
 			gf.visible = false;
@@ -9486,8 +9292,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		setupIntroText();
 	}
 
-	// El prop "introText" vive dentro del stage, que se dibuja ANTES que blackScreenSpr (zIndex 5999 en PlayState),
-	// asi que la pantalla negra lo tapaba. Se saca del stage y se pone en PlayState (camCutscene) por encima del negro.
 	function setupIntroText():Void
 	{
 		introText = getNamedProp("introText");
@@ -9501,7 +9305,7 @@ class PhoneCallStreetStage extends ScriptedStage
 
 		if (ps.members.indexOf(introText) == -1)
 		{
-			remove(introText); // lo saca del stage (Stage.remove)
+			remove(introText);
 			ps.add(introText);
 		}
 
@@ -9529,7 +9333,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		spr.destroy();
 	}
 
-	// Los subtitulos (si estan activados) usan la fuente de este mod.
 	function styleSubtitles():Void
 	{
 		if (ps.subtitles == null)
@@ -9549,9 +9352,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		}
 	}
 
-	// ------------------------------------------------------------------
-	// Timeline de la cancion (onBeatHit del script original)
-	// ------------------------------------------------------------------
 	function phoneBeat(beat:Int):Void
 	{
 		if (ps == null || ps.isMinimalMode)
@@ -9587,7 +9387,6 @@ class PhoneCallStreetStage extends ScriptedStage
 				{
 					var tadX0 = tad.x;
 					tad.x += 380;
-					// (el original encadenaba con .then(); aca se encadena con onComplete)
 					FlxTween.tween(tad, {x: tadX0 + 30}, 1.45, {onComplete: function(_)
 					{
 						FlxTween.tween(tad, {x: tadX0}, .5, {ease: FlxEase.cubeOut});
@@ -9650,7 +9449,6 @@ class PhoneCallStreetStage extends ScriptedStage
 					if (obj != null)
 						FlxTween.tween(obj, {y: obj.y - 250 * dir, alpha: 0}, 1.75, {ease: FlxEase.smootherStepIn, startDelay: .25});
 
-				// CurvedHealthBarModule dibuja su propia barra: se desvanece aparte.
 				fadeCurvedBar(1.75, .25);
 
 				for (obj in [ps.playerStrumline, ps.opponentStrumline])
@@ -9676,9 +9474,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		}
 	}
 
-	// ------------------------------------------------------------------
-	// Cambio de personajes sentados -> de pie (standUP del script original)
-	// ------------------------------------------------------------------
 	function standUP():Void
 	{
 		if (ps == null || ps.isMinimalMode)
@@ -9703,11 +9498,9 @@ class PhoneCallStreetStage extends ScriptedStage
 
 		ps.camGame.flash(FlxColor.WHITE, 1.5);
 
-		// neededZoom = 0.8 * stageZoom -> tweenCameraZoom ya multiplica por stageZoom.
 		ps.tweenCameraZoom(0.8, 0, false);
 	}
 
-	// Vuelve a los personajes originales (reintento despues del beat 232).
 	function swapBack():Void
 	{
 		standActive = false;
@@ -9738,13 +9531,11 @@ class PhoneCallStreetStage extends ScriptedStage
 		if (c == null)
 			return;
 
-		// addCharacter ya hace initHealthIcon, posiciona y setea characterType.
 		addCharacter(c, charType);
 		if (zExtra != 0)
 			c.zIndex = oldZ + zExtra;
 	}
 
-	// setPosition + actualiza originalPosition y el foco de camara (en V-Slice son independientes).
 	function placeCharacter(c, px:Float, py:Float, stageCharData):Void
 	{
 		if (c == null)
@@ -9761,9 +9552,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		}
 	}
 
-	// ------------------------------------------------------------------
-	// Barra de vida curva (CurvedHealthBarModule)
-	// ------------------------------------------------------------------
 	function getCurvedBarSprites()
 	{
 		var list = [];
@@ -9796,9 +9584,6 @@ class PhoneCallStreetStage extends ScriptedStage
 			FlxTween.tween(spr, {alpha: 0}, time, {ease: FlxEase.smootherStepIn, startDelay: delay});
 	}
 
-	// ------------------------------------------------------------------
-	// Timers
-	// ------------------------------------------------------------------
 	function cancelTimers():Void
 	{
 		var i = 0;
@@ -9812,9 +9597,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		timers = [];
 	}
 
-	// ------------------------------------------------------------------
-	// Modchart minimo
-	// ------------------------------------------------------------------
 	function mcReset():Void
 	{
 		mcTan = [0.0, 0.0];
@@ -9822,6 +9604,7 @@ class PhoneCallStreetStage extends ScriptedStage
 		mcScale = [1.0, 1.0];
 		mcScaleApplied = [1.0, 1.0];
 		mcWasActive = [false, false];
+		mcAlphaIsOne = [false, false];
 
 		for (k in mcTweens.keys())
 		{
@@ -9875,7 +9658,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		}
 	}
 
-	// Equivale a Modchart.ease(name, value, ...) con duracion en segundos, partiendo del valor actual.
 	function mcEase(name:String, lane:Int, target:Float, seconds:Float, ease):Void
 	{
 		var key = name + lane;
@@ -9899,7 +9681,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		mcTweens.set(key, tw);
 	}
 
-	// Offset en X por tanWave (depende de la distancia a los receptores).
 	function mcTanOffset(lane:Int, col:Int, dist:Float):Float
 	{
 		if (mcTan[lane] == 0)
@@ -9915,12 +9696,11 @@ class PhoneCallStreetStage extends ScriptedStage
 
 	function mcDist(strumTime:Float, s):Float
 	{
-		var d = (strumTime - Conductor.instance.songPosition) * 0.45 * s.scrollSpeed; // Constants.PIXELS_PER_MS = 0.45
+		var d = (strumTime - Conductor.instance.songPosition) * 0.45 * s.scrollSpeed;
 		return (d < 0) ? 0.0 : d;
 	}
 
-	// Aplica el alpha de la strumline a receptores, notas y sustains (incluye los que nacen despues del tween).
-	function syncStrumlineAlpha(s):Void
+	function syncStrumlineAlpha(s, lane):Void
 	{
 		var a = s.alpha;
 
@@ -9933,6 +9713,17 @@ class PhoneCallStreetStage extends ScriptedStage
 			c += 1;
 		}
 
+		if (a == 1.0)
+		{
+			if (mcAlphaIsOne[lane])
+				return;
+			mcAlphaIsOne[lane] = true;
+		}
+		else
+		{
+			mcAlphaIsOne[lane] = false;
+		}
+
 		var nm = s.notes.members;
 		var nlen = nm.length;
 		var i = 0;
@@ -9943,7 +9734,6 @@ class PhoneCallStreetStage extends ScriptedStage
 			if (n == null || !n.alive)
 				continue;
 
-			// una nota fallada se dibuja a media opacidad (Strumline.killNote / miss)
 			var na = n.handledMiss ? a * 0.5 : a;
 			if (n.alpha != na)
 				n.alpha = na;
@@ -9956,7 +9746,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		{
 			var h = hm[j];
 			j += 1;
-			// los sustains fallados/soltados manejan su propio alpha
 			if (h == null || !h.alive || h.missedNote)
 				continue;
 
@@ -9965,10 +9754,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		}
 	}
 
-	// Corre DESPUES de Strumline.update (FlxG.signals.postUpdate).
-	// X de cada columna relativa al strumline = Strumline.getXPos (incluye noteSpacingScale, strumlineScale y, en mobile con
-	// el esquema de flechas, el desplazamiento del jugador). NO se puede asumir col * 112 * escala: en mobile la separacion
-	// no es regular y las NoteSprite se juntaban.
 	var mcColXs = [0.0, 0.0, 0.0, 0.0];
 
 	function mcFillColX(s)
@@ -9986,7 +9771,7 @@ class PhoneCallStreetStage extends ScriptedStage
 			catch (e:Dynamic)
 			{
 			}
-			if (!ok) v = c * 112 * s.strumlineScale.x; // respaldo (si getXPos no fuera accesible)
+			if (!ok) v = c * 112 * s.strumlineScale.x;
 			mcColXs[c] = v;
 			c += 1;
 		}
@@ -9998,6 +9783,8 @@ class PhoneCallStreetStage extends ScriptedStage
 			return;
 
 		mcTime = Conductor.instance.songPosition / 1000;
+		var songPos = Conductor.instance.songPosition;
+		var t15 = mcTime * 1.5;
 
 		var lane = 0;
 		while (lane < 2)
@@ -10009,9 +9796,7 @@ class PhoneCallStreetStage extends ScriptedStage
 				continue;
 			}
 
-			// El alpha de la strumline solo se propaga a los hijos que existen al momento de cambiarlo:
-			// las notas/sustains que aparecen despues nacen con alpha 1. Se sincroniza cada frame.
-			syncStrumlineAlpha(s);
+			syncStrumlineAlpha(s, lane);
 
 			var active = (mcTan[lane] != 0 || mcShake[lane] != 0 || mcScale[lane] != 1.0 || mcScaleApplied[lane] != 1.0);
 			if (!active && !mcWasActive[lane])
@@ -10025,7 +9810,6 @@ class PhoneCallStreetStage extends ScriptedStage
 			var ratio = mcScale[lane] / mcScaleApplied[lane];
 			mcFillColX(s);
 
-			// shake: valores nuevos cada frame
 			var c = 0;
 			while (c < 4)
 			{
@@ -10043,8 +9827,6 @@ class PhoneCallStreetStage extends ScriptedStage
 				c += 1;
 			}
 
-			// receptores (se quita el offset aplicado el frame anterior y se pone el nuevo,
-			// asi no se pelea con los tweens de x/y de la strumline)
 			c = 0;
 			while (c < 4)
 			{
@@ -10061,7 +9843,11 @@ class PhoneCallStreetStage extends ScriptedStage
 				c += 1;
 			}
 
-			// notas
+			var tanK = mcTan[lane] * mcTanAmp;
+			var kd = 0.45 * s.scrollSpeed;
+			var sxPos = s.x;
+			var base = lane * 4;
+
 			var nm = s.notes.members;
 			var nlen = nm.length;
 			var i = 0;
@@ -10076,14 +9862,21 @@ class PhoneCallStreetStage extends ScriptedStage
 				if (ratio != 1.0)
 					n.scale.set(n.scale.x * ratio, n.scale.y * ratio);
 
-				var ox = mcTanOffset(lane, col, mcDist(n.strumTime, s)) + mcShx[lane * 4 + col];
-				n.yOffset = mcShy[lane * 4 + col];
+				var ox = mcShx[base + col];
+				if (tanK != 0)
+				{
+					var d = (n.strumTime - songPos) * kd;
+					if (d < 0) d = 0.0;
+					var tv = Math.tan(t15 + col * 0.25 + d * 0.006);
+					if (tv > 2) tv = 2;
+					if (tv < -2) tv = -2;
+					ox += tanK * tv;
+				}
+				n.yOffset = mcShy[base + col];
 
-				// misma formula que Strumline.buildNoteSprite (X de columna = getXPos, no una separacion fija)
-				n.x = s.x + mcColXs[col] - (n.width - 104) / 2 - 2 + ox;
+				n.x = sxPos + mcColXs[col] - (n.width - 104) / 2 - 2 + ox;
 			}
 
-			// sustains
 			var hm = s.holdNotes.members;
 			var hlen = hm.length;
 			var j = 0;
@@ -10095,9 +9888,18 @@ class PhoneCallStreetStage extends ScriptedStage
 					continue;
 
 				var hcol = h.noteDirection % 4;
-				var hox = mcTanOffset(lane, hcol, mcDist(h.strumTime, s)) + mcShx[lane * 4 + hcol];
-				h.yOffset = mcShy[lane * 4 + hcol];
-				h.x = s.x + mcColXs[hcol] + 52 - h.width / 2 + hox;
+				var hox = mcShx[base + hcol];
+				if (tanK != 0)
+				{
+					var hd = (h.strumTime - songPos) * kd;
+					if (hd < 0) hd = 0.0;
+					var htv = Math.tan(t15 + hcol * 0.25 + hd * 0.006);
+					if (htv > 2) htv = 2;
+					if (htv < -2) htv = -2;
+					hox += tanK * htv;
+				}
+				h.yOffset = mcShy[base + hcol];
+				h.x = sxPos + mcColXs[hcol] + 52 - h.width / 2 + hox;
 			}
 
 			mcScaleApplied[lane] = mcScale[lane];
@@ -10195,7 +9997,6 @@ class HSVBlendedShader extends FlxRuntimeShader
 		return shader;
 	}
 
-	// ARGB = FlxColor
 	public var hue:Float;
 	public var saturation:Float;
 	public var contrast:Float;
@@ -10489,8 +10290,6 @@ class CinematicBarsSongEvent extends SongEvent
 
   public override function onCountdownStart(event:ScriptEvent):Void
   {
-    // Por si el evento llega a dispararse de nuevo (retry) sin haber pasado
-    // por onDestroy antes, evitamos duplicar las barras.
     destroyBars();
 
     upperBar = new FlxSprite(-((BAR_WIDTH - FlxG.width) / 2), -BAR_HEIGHT);
@@ -10505,8 +10304,6 @@ class CinematicBarsSongEvent extends SongEvent
     lowerBar.zIndex = PlayState.instance.healthBar.zIndex - 8;
     PlayState.instance.add(lowerBar);
 
-    // El zIndex solo no reordena el array del state; hace falta refresh()
-    // para que realmente queden por debajo de la HUD (healthBar, combo, etc).
     PlayState.instance.refresh();
 
     baseUpperY = upperBar.y;
@@ -10561,19 +10358,14 @@ class CinematicBarsSongEvent extends SongEvent
     var downEase:String = data.getString('downEase') ?? SongEvent.DEFAULT_EASE;
     var downEaseDir:String = data.getString('easeDirdown') ?? SongEvent.DEFAULT_EASE_DIR;
 
-    // Cancelamos cualquier tween anterior antes de lanzar uno nuevo: esto es
-    // lo que evita el error tipico de "saltos"/glitches cuando dos eventos
-    // de CinematicBars caen muy seguidos uno del otro.
     FlxTween.cancelTweensOf(upperBar);
     FlxTween.cancelTweensOf(lowerBar);
 
     var upEaseFn:Float->Float = resolveEase(upEase, upEaseDir);
     var downEaseFn:Float->Float = resolveEase(downEase, downEaseDir);
 
-    // Barra de arriba: entra `upY` px hacia abajo desde su posicion base (oculta).
     FlxTween.tween(upperBar, {y: baseUpperY + upY}, Math.max(upTime, 0), {ease: upEaseFn});
 
-    // Barra de abajo: entra `downY` px hacia arriba desde su posicion base (oculta).
     FlxTween.tween(lowerBar, {y: baseLowerY - downY}, Math.max(downTime, 0), {ease: downEaseFn});
   }
 
@@ -10587,8 +10379,6 @@ class CinematicBarsSongEvent extends SongEvent
     if (ease == null || ease == '') ease = SongEvent.DEFAULT_EASE;
     if (easeDir == null) easeDir = '';
 
-    // Igual que en ZoomCamera: si el ease ya termina en In/Out/InOut, o es
-    // 'linear' (que no tiene variantes de direccion), no le pegamos el dir.
     if (SongEvent.EASE_TYPE_DIR_REGEX.match(ease) || ease == 'linear') easeDir = '';
 
     var fnName:String = '$ease$easeDir';
@@ -10720,7 +10510,6 @@ class AddCameraZoomSongEvent extends SongEvent
 
   public override function onCountdownStart(event:ScriptEvent):Void
   {
-    // Por si quedo "active" de una partida anterior (retry) sin pasar por onDestroy.
     active = false;
   }
 
@@ -10747,8 +10536,6 @@ class AddCameraZoomSongEvent extends SongEvent
     var gameZoom:Float = data.getFloat('gameZoom') ?? 0;
     var hudZoom:Float = data.getFloat('hudZoom') ?? 0;
 
-    // Primera vez que se dispara (o primera vez despues de haber terminado):
-    // apagamos el bop nativo y guardamos el rate para devolverselo despues.
     if (!active)
     {
       savedCameraZoomRate = ps.cameraZoomRate;
@@ -10756,8 +10543,6 @@ class AddCameraZoomSongEvent extends SongEvent
       active = true;
     }
 
-    // Aditivo: si llegan varios AddCameraZoom seguidos (como en el chart),
-    // se van sumando arriba del empujon anterior en vez de reemplazarlo.
     ps.cameraBopMultiplier += gameZoom;
     ps.camHUD.zoom += hudZoom;
   }
@@ -10776,8 +10561,6 @@ class AddCameraZoomSongEvent extends SongEvent
     var dt:Float = event.elapsed * 60;
     var decay:Float = Math.pow(DECAY_RATE, dt);
 
-    // Mismo lerp que usa el update() nativo del PlayState, pero manejado por
-    // nosotros porque cameraZoomRate esta en 0 (el nativo no corre).
     ps.cameraBopMultiplier = FlxMath.lerp(1.0, ps.cameraBopMultiplier, decay);
     ps.camHUD.zoom = FlxMath.lerp(ps.defaultHUDCameraZoom, ps.camHUD.zoom, decay);
 
@@ -10786,7 +10569,6 @@ class AddCameraZoomSongEvent extends SongEvent
       FlxG.camera.zoom = ps.currentCameraZoom * ps.cameraBopMultiplier;
     }
 
-    // Ya decayo casi del todo: le devolvemos el control al bop normal.
     if (Math.abs(ps.cameraBopMultiplier - 1.0) < EPSILON && Math.abs(ps.camHUD.zoom - ps.defaultHUDCameraZoom) < EPSILON)
     {
       ps.cameraBopMultiplier = 1.0;
@@ -10840,7 +10622,6 @@ class SetPropertySongEvent extends SongEvent
 
   public function new()
   {
-    // processOldEvents: es estado persistente, debe aplicarse aunque se salte hacia adelante.
     super('SetProperty', {processOldEvents: true});
   }
 
@@ -10936,7 +10717,6 @@ class SetPropertySongEvent extends SongEvent
   override public function onUpdate(event:UpdateScriptEvent):Void
   {
     if (cameraSpeedMult == 1.0) return;
-    // followLerp en 0 significa pausa/tween manual de camara: no tocar.
     if (FlxG.camera.followLerp > 0) FlxG.camera.followLerp = Constants.DEFAULT_CAMERA_FOLLOW_RATE * cameraSpeedMult;
   }
 
@@ -11121,25 +10901,25 @@ class ScreenShakeSongEvent extends SongEvent
 
 class AnimaniaModule extends Module
 {
-	// ---------------------------------------------------------------- config
 	var BANNED_NOTEKINDS = ["noAnimation", "noanim", "parents-miss", "solotime"];
-	var ONLY_HUD_SONGS = ["phone-call"]; // canciones no-base que igual reciben el HUD nuevo
+	var ONLY_HUD_SONGS = ["phone-call"];
 
 	var camX:Float = 25.0;
 	var camY:Float = 25.0;
 
-	var ICON_BASE_SIZE:Float = 125; // tamaño "reposo" del icono (vanilla usa 150)
-	var ICON_BOP_SCALE:Float = 0.2; // cuánto crece el icono en cada beat
-	var POSITION_OFFSET:Int = 20; // separación de los iconos respecto al borde de la barra
+	var ICON_BASE_SIZE:Float = 125;
+	var ICON_BOP_SCALE:Float = 0.2;
+	var POSITION_OFFSET:Int = 20;
 
 	var BAR_MODULE_ID:String = "CurvedHealthBarModule";
 
-	// ----------------------------------------------------------------- estado
 	var usingAmTakeUI:Bool = false;
 	var curFocus:String = null;
 	var curFocusOld:String = null;
 
-	// Colores de la barra: dad = lado izquierdo (redBar), bf = lado derecho (greenBar).
+	var bopP1:Float = 0;
+	var bopP2:Float = 0;
+
 	var barDadColor:Int = Constants.COLOR_HEALTH_BAR_RED;
 	var barBfColor:Int = Constants.COLOR_HEALTH_BAR_GREEN;
 	var barNeedsPaint:Bool = true;
@@ -11149,7 +10929,6 @@ class AnimaniaModule extends Module
 		super("AnimaniaModule", 15);
 	}
 
-	// ------------------------------------------------------ helpers de canción
 	function baseFNFSong():Bool
 	{
 		if (PlayState.instance == null)
@@ -11157,7 +10936,6 @@ class AnimaniaModule extends Module
 		return listBaseGameSongIds().contains((PlayState.instance.currentSong?.id.toLowerCase() ?? ''));
 	}
 
-	// Canciones base de FNF o las de ONLY_HUD_SONGS.
 	function allowedHUD():Bool
 	{
 		if (PlayState.instance == null)
@@ -11179,7 +10957,6 @@ class AnimaniaModule extends Module
 		}
 	}
 
-	// ----------------------------------------------------- foco de la cámara
 	function updateCurFocus(player:Int):Void
 	{
 		curFocus = switch (player)
@@ -11187,7 +10964,7 @@ class AnimaniaModule extends Module
 			case 0: "bf";
 			case 1: "dad";
 			case 2: "gf";
-			default: null; // -1 = posición fija, sin foco en personaje
+			default: null;
 		}
 	}
 
@@ -11200,7 +10977,6 @@ class AnimaniaModule extends Module
 		var data = event.eventData;
 		if (data.eventKind == "FocusCamera")
 		{
-			// V-Slice: value.char (formato nuevo) o value directo (formato viejo).
 			var focusChar = data.getInt('char');
 			if (focusChar == null && Std.isOfType(data.value, Int))
 				focusChar = data.value;
@@ -11229,6 +11005,8 @@ class AnimaniaModule extends Module
 		super.onSongRetry(event);
 		curFocus = null;
 		curFocusOld = null;
+		bopP1 = 0;
+		bopP2 = 0;
 	}
 
 	function triggerCameraMovement(dir:Int):Void
@@ -11243,24 +11021,25 @@ class AnimaniaModule extends Module
 		var mult = 1 / play.camGame.zoom * (play.stageZoom / 2);
 		switch (dir)
 		{
-			case 0: // izquierda
+			case 0:
 				off.x = -camX * mult;
-			case 1: // abajo
+			case 1:
 				off.y = camY * mult;
-			case 2: // arriba
+			case 2:
 				off.y = -camY * mult;
-			case 3: // derecha
+			case 3:
 				off.x = camX * mult;
 		}
 	}
 
-	// ------------------------------------------------------------ cambio de estado
 	override function onStateChangeEnd(event)
 	{
 		super.onStateChangeEnd(event);
 		usingAmTakeUI = false;
 		curFocus = null;
 		curFocusOld = null;
+		bopP1 = 0;
+		bopP2 = 0;
 
 		if (Std.isOfType(event.targetState, PlayState))
 			loadAmTakeUI();
@@ -11269,7 +11048,6 @@ class AnimaniaModule extends Module
 	override function onSubStateOpenEnd(event)
 	{
 		super.onSubStateOpenEnd(event);
-		// PlayState abierto como substate (playtest del Chart Editor)
 		if (Std.isOfType(event.targetState, PlayState))
 			loadAmTakeUI();
 	}
@@ -11280,7 +11058,6 @@ class AnimaniaModule extends Module
 		super.onDestroy(event);
 	}
 
-	// ------------------------------------------------------------------ HUD
 	function loadAmTakeUI():Void
 	{
 		var play = PlayState.instance;
@@ -11288,14 +11065,17 @@ class AnimaniaModule extends Module
 			return;
 
 		usingAmTakeUI = true;
-		barNeedsPaint = true; // CurvedHealthBarModule crea sus sprites después que este módulo, se pinta en onUpdate
+		bopP1 = 0;
+		bopP2 = 0;
+		barNeedsPaint = true;
 
-		// Iconos: el bop y la posición los maneja este módulo (ver updateHealthIcons)
 		for (icon in [play.iconP1, play.iconP2])
 		{
 			if (icon == null)
 				continue;
-			icon.bopEvery = 0; // desactiva el bop por tween de vanilla
+			icon.bopEvery = 0;
+			if (icon.bopTween != null)
+				icon.bopTween.cancel();
 		}
 	}
 
@@ -11304,8 +11084,6 @@ class AnimaniaModule extends Module
 		return ModuleHandler.getModule(BAR_MODULE_ID);
 	}
 
-	// Pinta la healthbar de CurvedHealthBarModule. dadColor = lado izquierdo, bfColor = lado derecho.
-	// Se puede llamar en cualquier momento; si la barra todavía no existe, se aplica apenas aparezca.
 	public function setBarColors(dadColor:Int, bfColor:Int):Void
 	{
 		barDadColor = dadColor;
@@ -11321,14 +11099,13 @@ class AnimaniaModule extends Module
 
 		var mod = getBarModule();
 		if (mod == null || mod.redBar == null || mod.greenBar == null)
-			return; // la barra aún no fue construida (o el stage no está permitido)
+			return;
 
 		mod.redBar.color = barDadColor;
 		mod.greenBar.color = barBfColor;
 		barNeedsPaint = false;
 	}
 
-	// ---------------------------------------------------------------- update
 	override function onUpdate(event)
 	{
 		super.onUpdate(event);
@@ -11337,7 +11114,6 @@ class AnimaniaModule extends Module
 		if (play == null || play.isGamePaused)
 			return;
 
-		// El offset de cámara vuelve suavemente a 0 (no toca la transición a resultados ni la muerte)
 		if (!play.isSongEnd && !play.isPlayerDying)
 		{
 			var off = FlxG.camera.targetOffset;
@@ -11353,8 +11129,6 @@ class AnimaniaModule extends Module
 
 		tryPaintBar();
 
-		// MusicBeatState dispara este evento DESPUÉS de actualizar los iconos,
-		// así que lo que se setea acá pisa la posición de vanilla.
 		updateHealthIcons(event.elapsed);
 	}
 
@@ -11364,9 +11138,6 @@ class AnimaniaModule extends Module
 		var bar = play.healthBar;
 		var downscroll:Bool = AmScroll.isDown();
 
-		// Borde entre los dos colores y centro vertical de la barra.
-		// Con CurvedHealthBarModule activo se miden sobre sus sprites (el FlxBar de ese módulo es invisible
-		// y está desplazado); si no está activo se usa la healthbar vanilla.
 		var edgeX:Float;
 		var centerY:Float;
 		var mod = getBarModule();
@@ -11383,6 +11154,7 @@ class AnimaniaModule extends Module
 		}
 		var wave = FlxMath.fastCos((play.health - 1) * 2) * 15;
 		var lerpHealth = bar.value;
+		var bopDuration:Float = Math.max(Math.min(Conductor.instance.stepLengthMs * 0.002, 0.175), 0.01);
 
 		for (i in 0...2)
 		{
@@ -11390,21 +11162,29 @@ class AnimaniaModule extends Module
 			if (icon == null || !icon.autoUpdate)
 				continue;
 
-			// Tamaño: lerp suave hacia ICON_BASE_SIZE
-			if (icon.width > icon.height)
-				icon.setGraphicSize(MathUtil.smoothLerpPrecision(icon.width, ICON_BASE_SIZE * icon.size.x, elapsed, 0.512), 0);
+			var bop:Float = (i == 0) ? bopP1 : bopP2;
+			if (bop > 0)
+				bop = Math.max(bop - elapsed / bopDuration, 0);
+			if (i == 0)
+				bopP1 = bop;
 			else
-				icon.setGraphicSize(0, MathUtil.smoothLerpPrecision(icon.height, ICON_BASE_SIZE * icon.size.y, elapsed, 0.512));
+				bopP2 = bop;
+
+			var fw:Float = Math.max(icon.frameWidth, 1);
+			var fh:Float = Math.max(icon.frameHeight, 1);
+			var mult:Float = 1 + ICON_BOP_SCALE * bop;
+			var s:Float = (fw > fh) ? (ICON_BASE_SIZE * icon.size.x * mult) / fw : (ICON_BASE_SIZE * icon.size.y * mult) / fh;
+			icon.scale.set(s, s);
 			icon.updateHitbox();
 
 			var targetAngle:Float = 0;
-			if (i == 0) // Boyfriend
+			if (i == 0)
 			{
 				icon.x = edgeX - POSITION_OFFSET;
 				if (lerpHealth < .25)
 					targetAngle = 50 * (.25 - lerpHealth);
 			}
-			else // Dad
+			else
 			{
 				icon.x = edgeX - (icon.width - POSITION_OFFSET);
 				if (lerpHealth > 1.75)
@@ -11416,7 +11196,6 @@ class AnimaniaModule extends Module
 			else
 				icon.y = centerY - (icon.height / 2) - 10 + wave;
 
-			// Como bopEvery = 0 vanilla ya no devuelve el ángulo a 0, lo hago acá
 			if (targetAngle != 0)
 				icon.angle = targetAngle;
 			else
@@ -11434,23 +11213,21 @@ class AnimaniaModule extends Module
 		if (play == null)
 			return;
 
-		for (icon in [play.iconP1, play.iconP2])
+		for (i in 0...2)
 		{
+			var icon = (i == 0) ? play.iconP1 : play.iconP2;
 			if (icon == null || !icon.autoUpdate)
 				continue;
-			// respeta HealthIconData.shouldBop (iconos animados)
 			if (Reflect.field(icon, "shouldBop") == false)
 				continue;
 
-			if (icon.width > icon.height)
-				icon.setGraphicSize(icon.width + ICON_BASE_SIZE * icon.size.x * ICON_BOP_SCALE, 0);
+			if (i == 0)
+				bopP1 = 1;
 			else
-				icon.setGraphicSize(0, icon.height + ICON_BASE_SIZE * icon.size.y * ICON_BOP_SCALE);
-			icon.updateHitbox();
+				bopP2 = 1;
 		}
 	}
 
-	// ------------------------------------------------------------ notas
 	override function onNoteHit(event)
 	{
 		super.onNoteHit(event);
@@ -11483,7 +11260,6 @@ class AnimaniaModule extends Module
 		if (play == null || BANNED_NOTEKINDS.contains(note.kind))
 			return;
 
-		// Drain de vida del oponente (no baja del 20%)
 		if (play.health > Constants.HEALTH_MAX * .2)
 			play.health -= .85 / 100.0 * Constants.HEALTH_MAX;
 
@@ -11526,21 +11302,16 @@ class AnimaniaModule extends Module
 
 class AnimaniaStuff extends Module
 {
-	// Umbrales de salud (rango 0..2, igual que Constants.HEALTH_MAX).
 	var DEATH_THRESHOLD:Float = 0.125 * 2;
 	var LOSING_THRESHOLD:Float = 0.25 * 2;
 	var WINING_THRESHOLD:Float = 0.8 * 2;
 
-	// Copia de HealthIcon.POSITION_OFFSET (es private static en V-Slice, no se puede leer desde script).
 	var ICON_POSITION_OFFSET:Float = 26;
 
-	// Sprite del countdown anterior (se desvanece en el paso AFTER).
 	var oldSpr:FunkinSprite = null;
 
-	// Note kinds que los personajes no deben cantar (lo consultan con isBannedNoteKind).
 	var BANNED_NOTEKINDS:Array<String> = [];
 
-	// Iconos controlados por este módulo (ver makeAmTakeIcon / makeAmTakeAnimatedIcon).
 	var amTakeIcons:Array<Dynamic> = [];
 
 	function new()
@@ -11549,11 +11320,6 @@ class AnimaniaStuff extends Module
 		registerNoteKinds();
 	}
 
-	// ------------------------------------------------------------------
-	// NOTE KINDS
-	// V-Slice no tiene ChartEditorDropdowns.NOTE_KINDS: el dropdown del chart editor
-	// se llena con NoteKindManager.noteKinds (id -> NoteKind, con su description).
-	// ------------------------------------------------------------------
 	function registerNoteKinds():Void
 	{
 		var kinds:Array<Array<String>> = [
@@ -11564,13 +11330,11 @@ class AnimaniaStuff extends Module
 			["beatbox", "BeatBox Note (Fresh)"],
 			["fresh", "Fresh Note (Fresh)"],
 			["blush", "Blush Note (Fresh)"]
-			// ["fuckup", "FuckUp Note (Wow!)"]
 		];
 
 		for (kind in kinds)
 		{
 			var id:String = kind[0];
-			// Si ya existe un ScriptedNoteKind con ese id, no lo pisamos.
 			if (NoteKindManager.getNoteKind(id) == null)
 			{
 				NoteKindManager.noteKinds.set(id, new NoteKind(id, kind[1]));
@@ -11604,7 +11368,6 @@ class AnimaniaStuff extends Module
 		showCountdownGraphic(event.step);
 	}
 
-	// Mismo criterio que Countdown.fetchNoteStyle (que es privado en V-Slice).
 	function getCountdownNoteStyle():Dynamic
 	{
 		var chart = PlayState.instance.currentChart;
@@ -11634,7 +11397,6 @@ class AnimaniaStuff extends Module
 			if (member.graphic == null || member.graphic.key != key) continue;
 			if (member.cameras == null || member.cameras.length == 0 || member.cameras[0] != state.camHUD) continue;
 
-			// Solo se oculta: el tween de Countdown lo destruye al terminar, igual que en vanilla.
 			member.visible = false;
 			return;
 		}
@@ -11645,7 +11407,6 @@ class AnimaniaStuff extends Module
 		var state = PlayState.instance;
 		var stepName:String = Std.string(index);
 
-		// En V-Slice no llega un "isPixelStyle": se saca del note style del chart actual.
 		var noteStyle = getCountdownNoteStyle();
 
 		var isPixelStyle:Bool = noteStyle.isCountdownSpritePixel(index);
@@ -11676,7 +11437,6 @@ class AnimaniaStuff extends Module
 		}
 		if (prefix == null) return;
 
-		// El sprite del paso anterior se elimina al llegar el siguiente.
 		if (oldSpr != null)
 		{
 			state.remove(oldSpr, true);
@@ -11712,11 +11472,9 @@ class AnimaniaStuff extends Module
 	{
 		var state = PlayState.instance;
 
-		// Ruta del asset según el note style (null si ese paso no tiene gráfico, ej. THREE).
 		var spritePath:String = noteStyle.buildCountdownSpritePath(index);
 		if (spritePath == null) return;
 
-		// FunkinSprite.create en V-Slice es (x, y, key).
 		var countdownSprite:FunkinSprite = FunkinSprite.create(0, 0, spritePath);
 		countdownSprite.scrollFactor.set();
 		countdownSprite.antialiasing = false;
@@ -11728,7 +11486,6 @@ class AnimaniaStuff extends Module
 
 		state.add(countdownSprite);
 
-		// Fade sprite in, then out, then destroy it.
 		FlxTween.tween(countdownSprite, {y: (countdownSprite.y -= 15) + 30, alpha: 0}, Conductor.instance.beatLengthMs / 1000, {
 			ease: FlxEase.cubeInOut,
 			onComplete: function(twn:FlxTween):Void
@@ -11759,11 +11516,6 @@ class AnimaniaStuff extends Module
 		});
 	}
 
-	// ------------------------------------------------------------------
-	// HEALTH ICONS
-	// HealthIcon.updateHealthIcon no es dynamic (no se puede reemplazar), así que el icono
-	// pasa a autoUpdate = false y este módulo maneja su animación y posición en onUpdate.
-	// ------------------------------------------------------------------
 	function makeAmTakeIcon(ic:HealthIcon):HealthIcon
 	{
 		var icon = ic;
@@ -11778,8 +11530,6 @@ class AnimaniaStuff extends Module
 		return icon;
 	}
 
-	// customOffsets: Map<String, Array<Float>> (animación -> [x, y], con clave "default"),
-	// o un Array<Float> [x, y] que se usa para todas las animaciones.
 	function makeAmTakeAnimatedIcon(ic:HealthIcon, ?isPlayer:Bool = false, ?customOffsets:Dynamic = null):HealthIcon
 	{
 		var icon = ic;
@@ -11790,7 +11540,6 @@ class AnimaniaStuff extends Module
 
 		if (icon.anim.hasAnimateAtlas)
 		{
-			// Icono de atlas de Animate: los estados son frame labels de la timeline principal.
 			icon.animation.addByFrameLabel("winning", "win", 24, true);
 			icon.animation.addByFrameLabel("idle", "basic", 24, true);
 			icon.animation.addByFrameLabel("losing", "lose", 24, true);
@@ -11836,7 +11585,6 @@ class AnimaniaStuff extends Module
 		return icon;
 	}
 
-	// HealthIcon.playerId es privado: se compara contra iconP1.
 	function isPlayerIcon(icon:HealthIcon):Bool
 	{
 		return PlayState.instance != null && icon == PlayState.instance.iconP1;
@@ -11876,7 +11624,6 @@ class AnimaniaStuff extends Module
 				continue;
 			}
 
-			// Igual que HealthIcon.updatePosition: el oponente usa la salud invertida.
 			var health:Float = entry.isPlayer ? state.health : Constants.HEALTH_MAX - state.health;
 
 			if (entry.animated) updateAnimatedIconState(icon, health);
@@ -11887,7 +11634,6 @@ class AnimaniaStuff extends Module
 		}
 	}
 
-	// Réplica de la parte de posición de HealthIcon.updatePosition (solo corre con autoUpdate = true).
 	function updateAmTakeIconPosition(icon:HealthIcon, isPlayer:Bool):Void
 	{
 		var bar = PlayState.instance.healthBar;
@@ -11901,7 +11647,6 @@ class AnimaniaStuff extends Module
 		icon.y = bar.y - (icon.height / 2);
 	}
 
-	// Offsets por animación: se suman al iconOffset propio del icono (el de la data del personaje).
 	function applyAnimatedIconOffsets(entry:Dynamic):Void
 	{
 		var icon = entry.icon;
@@ -12011,7 +11756,6 @@ class CurvedHealthBarModule extends Module implements IPlayStateScriptedClass
 		super("CurvedHealthBarModule", 20);
 	}
 
-	// Solo activo en estos stages (id de PlayState.instance.currentStage.id).
 	static var MEGA_ALLOWED_STAGES:Array<String> = [
 		"mainStageAmTake",
 		"serviceEnterance",
@@ -12051,7 +11795,6 @@ class CurvedHealthBarModule extends Module implements IPlayStateScriptedClass
 			}
 			else
 			{
-				// Stage no soportado: se deja la healthbar vanilla tal cual.
 				var play = PlayState.instance;
 				if (play != null)
 				{
@@ -12226,7 +11969,6 @@ class AnimaniaScoreModule extends Module
   public var lastShownScore:Int = -1;
   public var usingScoreUI:Bool = false;
 
-  // Solo activo en estos stages (id de PlayState.instance.currentStage.id).
   static var MEGA_ALLOWED_STAGES:Array<String> = [
     "mainStageAmTake",
     "serviceEnterance",
@@ -12272,7 +12014,6 @@ class AnimaniaScoreModule extends Module
     else disableScoreUI();
   }
 
-  // Deja el scoreText vanilla visible y se asegura de que no quede UI custom colgada.
   function disableScoreUI():Void
   {
     destroyScoreUI();
@@ -12350,8 +12091,6 @@ class AnimaniaScoreModule extends Module
       digit.cameras = [game.camHUD];
       digit.zIndex = 899 - i;
 
-      // Solo el dígito de unidades arranca visible; el resto se prende
-      // solo cuando el score realmente lo necesita.
       digit.visible = (i == 0);
 
       game.add(digit);
@@ -12480,7 +12219,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
     super("RatingComboModule", 200);
   }
 
-  // Solo activo en estos stages (id de PlayState.instance.currentStage.id).
   static var MEGA_ALLOWED_STAGES:Array<String> = [
     "mainStageAmTake",
     "serviceEnterance",
@@ -12503,10 +12241,8 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
   var comboBlotColors:Array<Int> = [0xFF6666FF, 0xFFFF66CC, 0xFFFFCC99, 0xFF66FF99, 0xFF66FF99];
   var comboBlotColorsMax:Array<Int> = [50, 100, 200, 300];
 
-  // Extra offset that other scripts/options can tweak at runtime.
   public var offsets:Array<Int> = [0, 0];
 
-  // Offset of the current stage (replaces the fork's `ratingsOffset` stage JSON field). Filled in setup().
   public var stageOffsets:Array<Int> = [0, 0];
 
   public var variation:Bool = true;
@@ -12516,7 +12252,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
 
   public var blot:FunkinSprite = null;
 
-  // True when ratingPopUps lives inside the Stage (so it can be sorted between props by zIndex).
   var popupsInStage:Bool = false;
 
   /**
@@ -12525,15 +12260,9 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
    */
   public var popupZoomFactor:Float = 0.5;
 
-  // Per-popup state used to position it every frame: [sprite, x0, y0, velX, velY, accelY, scaleX, scaleY, age]
   var popupStates:Array<Array<Dynamic>> = [];
 
-  // Callback registered in FlxG.signals.postUpdate (runs after the camera scroll/zoom of the frame are final).
   var popupPostUpdate:Dynamic = null;
-
-  // === Per-stage data ===
-  // Vanilla V-Slice rejects unknown fields in stage JSONs (`ratingsOffset` / `popupZIndex` make the whole stage fail
-  // to parse), so that data lives here, keyed by stage id (the stage json file name).
 
   /**
    * Offset [x, y] applied to the popups on each stage. (was `ratingsOffset`)
@@ -12563,8 +12292,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
       default: null;
     }
   }
-
-  // === Lifecycle ===
 
   override function onStateChangeEnd(event:StateChangeScriptEvent):Void
   {
@@ -12609,14 +12336,10 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
     var popupZ:Dynamic = getStagePopupZIndex(stageId);
 
     ratingPopUps = new FunkinGroup();
-    // FunkinGroup.updateChildren() rewrites x/y/angle/scale/alpha/cameras of every child EVERY frame from their
-    // localX/localY/localAngle/localScale/localAlpha. That kills velocity/acceleration, the fade tween and the scales.
-    // With customChildUpdate the children keep their own values, like they did in a plain FlxSpriteGroup/FlxTypedGroup.
     ratingPopUps.customChildUpdate = true;
 
     if (popupZ != null && play.currentStage != null)
     {
-      // Inside the stage: sorted with the props/characters by zIndex.
       ratingPopUps.zIndex = popupZ;
       play.currentStage.add(ratingPopUps);
       play.currentStage.refresh();
@@ -12628,13 +12351,11 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
       popupsInStage = false;
     }
 
-    // Stage.add() overwrites `cameras`, so set it after adding.
     ratingPopUps.cameras = [play.camGame];
 
     if (play.comboPopUps != null)
       play.comboPopUps.visible = false;
 
-    // Popups are positioned after the camera update so the zoomFactor compensation uses the final scroll/zoom.
     removePostUpdateHook();
     popupPostUpdate = applyPopupTransforms;
     FlxG.signals.postUpdate.add(popupPostUpdate);
@@ -12695,7 +12416,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
   {
     if (!isPopupGroupAlive())
     {
-      // The group (and its sprites) is already gone, nothing left to clean.
       previousComboStuff = [];
       popupStates = [];
       return;
@@ -12711,7 +12431,7 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
         continue;
 
       FlxTween.cancelTweensOf(spr);
-      ratingPopUps.remove(spr); // FunkinGroup.remove() takes a single argument
+      ratingPopUps.remove(spr);
       spr.destroy();
     }
 
@@ -12756,7 +12476,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
     if (play == null || !isPopupGroupAlive())
       return;
 
-    // Vanilla falls back to "good" when there is no judgement.
     if (rat == null)
       rat = "good";
 
@@ -12774,8 +12493,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
     blot.frames = ratingsFrames;
     blot.animation.addByPrefix('blot1', "blot0", 24, false);
     blot.animation.addByPrefix('blot2', "blot 2", 24, false);
-    // Everything else (rating, combo, numbers) is positioned relative to the blot,
-    // so shifting it by the stage offset moves the whole popup.
     blot.x = (FlxG.width * 0.474) + offsets[0] + stageOffsets[0];
     blot.y = (FlxG.camera.height * 0.45 - 60) + offsets[1] + stageOffsets[1];
     blot.setGraphicSize(Std.int(blot.width * 0.6));
@@ -12789,7 +12506,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
     blot.origin.set(blot.frameWidth * .4, blot.frameHeight * .4);
     blot.angle = FlxG.random.float(-15, 15);
 
-    // BLOT COLOR CHANGE
     if (daRating != "fuck up")
     {
       var currentColorPoint:Int = 0;
@@ -12820,9 +12536,7 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
     rating.animation.play(daRating);
     var offss:Array<Int> = getRatingOffset(daRating);
     rating.offset.set(offss[0], offss[1]);
-    // RATING
 
-    // COMBO
     var comboSpr:FunkinSprite = null;
     if (combo >= SHOW_COMBO_VALUE)
     {
@@ -12831,9 +12545,7 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
         comboSpr.color = FlxColor.GRAY;
       previousComboStuff.push([comboSpr, true]);
     }
-    // COMBO
 
-    // COMBO NUMBERS
     if (combo >= SHOW_COMBONUMS_VALUE)
     {
       var seperatedScore:Array<Int> = [];
@@ -12878,7 +12590,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
       rating.x += 50;
       rating.y += 50 - blot.offset.y / 2;
     }
-    // COMBO NUMBERS
 
     var comboColors:Array<Int> = null;
     if (Highscore.tallies.sick == Highscore.tallies.totalNotesHit && Highscore.tallies.missed == 0)
@@ -12897,9 +12608,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
         baseShit.angle = FlxG.random.int(-5, 5);
         baseShit.angularVelocity += FlxG.random.int(-5, 5);
 
-        // The movement (x = x0 + vx*t, y = y0 + vy*t + accel*t^2/2, same result as velocity/acceleration) is applied
-        // by applyPopupTransforms() so the zoomFactor compensation can be done on top of it.
-        // The sprite's own velocity/acceleration stay at 0 so Flixel doesn't move it a second time.
         popupStates.push([
           baseShit,
           baseShit.x,
@@ -12925,7 +12633,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
       startFade(baseShit, dissapearTimeMult);
     }
 
-    // Place them right away so there is no frame with the uncompensated position.
     applyPopupTransforms();
   }
 
@@ -12933,7 +12640,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
   {
     super.onUpdate(event);
 
-    // Only advances while PlayState is updating, so the popups freeze with the game when it's paused.
     for (st in popupStates)
       st[8] = st[8] + event.elapsed;
   }
@@ -12965,7 +12671,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
       for (st in popupStates)
       {
         var spr:FunkinSprite = st[0];
-        // Killed (faded out) or destroyed sprites are skipped; a destroyed one has no scale/offset/origin anymore.
         if (spr == null || !spr.exists)
           continue;
 
@@ -12976,11 +12681,9 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
         var sfx:Float = spr.scrollFactor.x;
         var sfy:Float = spr.scrollFactor.y;
 
-        // Screen position (before the camera zoom) of the sprite's origin point.
         var ox:Float = lx - cam.scroll.x * sfx - spr.offset.x + spr.origin.x;
         var oy:Float = ly - cam.scroll.y * sfy - spr.offset.y + spr.origin.y;
 
-        // Scale that point around the camera center and go back to world coordinates.
         ox = cx + (ox - cx) * ratio;
         oy = cy + (oy - cy) * ratio;
 
@@ -12991,7 +12694,6 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
     }
     catch (e:Dynamic)
     {
-      // Never let a per-frame callback spam errors: stop compensating this batch of popups.
       trace("[RatingComboModule] applyPopupTransforms failed: " + e);
       popupStates = [];
     }
@@ -13056,7 +12758,6 @@ class FullComboModule extends Module implements IPlayStateScriptedClass
 		super("FullComboModule", 200);
 	}
 
-	// Solo activo en estos stages (id de PlayState.instance.currentStage.id).
 	static var MEGA_ALLOWED_STAGES:Array<String> = [
 		"mainStageAmTake",
 		"serviceEnterance",
@@ -13073,10 +12774,6 @@ class FullComboModule extends Module implements IPlayStateScriptedClass
 		return MEGA_ALLOWED_STAGES.indexOf(play.currentStage.id) != -1;
 	}
 
-	// ------------------------------------------------------------------
-	// Estado interno
-	// ------------------------------------------------------------------
-
 	public var fcSprite:FullComboSpr = null;
 
 	/** Notas seguidas acertadas desde el último corte de combo (para el bonus de score). */
@@ -13087,10 +12784,6 @@ class FullComboModule extends Module implements IPlayStateScriptedClass
 
 	/** true mientras la UI de FC ya fue construida para el PlayState actual. */
 	public var uiReady:Bool = false;
-
-	// ------------------------------------------------------------------
-	// Ciclo de vida / construcción de la UI
-	// ------------------------------------------------------------------
 
 	override public function onStateChangeEnd(event:StateChangeScriptEvent):Void
 	{
@@ -13125,7 +12818,7 @@ class FullComboModule extends Module implements IPlayStateScriptedClass
 		fcSprite.zIndex = 1550;
 		fcSprite.updateHitbox();
 		fcSprite.y = AmScroll.isPref() ? 20 : FlxG.height - fcSprite.height;
-		fcSprite.alpha = 0.0001; // arranca invisible hasta la 1ra nota
+		fcSprite.alpha = 0.0001;
 		fcSprite.comboStatus = "PFC";
 
 		play.add(fcSprite);
@@ -13159,10 +12852,6 @@ class FullComboModule extends Module implements IPlayStateScriptedClass
 		scoreCombo = 0;
 	}
 
-	// ------------------------------------------------------------------
-	// Combo tracking
-	// ------------------------------------------------------------------
-
 	override public function onNoteHit(event:HitNoteScriptEvent):Void
 	{
 		if (uiReady && event.note.noteData.getMustHitNote())
@@ -13195,7 +12884,6 @@ class FullComboModule extends Module implements IPlayStateScriptedClass
 		if (fcSprite == null)
 			return;
 
-		// Si estaba invisible (recién apareció / venía de un corte), lo hace "saltar" a pantalla.
 		if (fcSprite.active && fcSprite.alpha < .1)
 		{
 			fcSprite.scale.set(.55, .55);
@@ -13204,7 +12892,6 @@ class FullComboModule extends Module implements IPlayStateScriptedClass
 			FlxTween.tween(fcSprite, {angle: 0, alpha: 1}, .25);
 		}
 
-		// PFC si nunca hubo un "good"/menor a sick entre las notas acertadas; si no, FC normal.
 		fcSprite.comboStatus = (Highscore.tallies.sick == Highscore.tallies.totalNotesHit) ? "PFC" : "Normal";
 	}
 
@@ -13244,10 +12931,6 @@ class FullComboModule extends Module implements IPlayStateScriptedClass
 		scoreCombo = 0;
 	}
 
-	// ------------------------------------------------------------------
-	// Bop del FC en cada beat, mientras esté visible
-	// ------------------------------------------------------------------
-
 	override public function onBeatHit(event:SongTimeScriptEvent):Void
 	{
 		super.onBeatHit(event);
@@ -13260,7 +12943,6 @@ class FullComboModule extends Module implements IPlayStateScriptedClass
 }
 
 
-// WIP
 class FullComboSpr extends FunkinSprite
 {
 	public var comboStatus:String = "PFC";
@@ -13276,9 +12958,6 @@ class FullComboSpr extends FunkinSprite
 	{
 		if (comboStatus != "Break")
 		{
-			// `frameOffset` no existe en el vanilla: el equivalente real es el
-			// `offset` estándar de FlxSprite (desplaza el gráfico dibujado sin
-			// mover x/y ni el hitbox), que es justo lo que se necesita acá.
 			offset.set(outOff, outOff);
 			origin.x += outOff;
 			origin.y += outOff;
@@ -13292,7 +12971,7 @@ class FullComboSpr extends FunkinSprite
 			color = oldColor;
 			origin.x -= outOff;
 			origin.y -= outOff;
-			offset.set(); // FlxPoint.set() sin argumentos vuelve a (0, 0)
+			offset.set();
 		}
 		setColorTransform(1, 1, 1, alpha, 0, 0, 0, 0);
 		super.draw();
@@ -13318,7 +12997,6 @@ class AlphabetPsych extends FlxTypedSpriteGroup
 	public var delay:Float = 0.05;
 	public var paused:Bool = false;
 
-	// for menu shit
 	public var forceX:Float = Math.NEGATIVE_INFINITY;
 	public var targetY:Float = 0;
 	public var yMult:Float = 120;
@@ -13332,8 +13010,6 @@ class AlphabetPsych extends FlxTypedSpriteGroup
 	var _finalText:String = "";
 	var yMulti:Float = 1;
 
-	// custom shit
-	// amp, backslash, question mark, apostrophy, comma, angry faic, period
 	var lastSprite:AlphaCharacterPsych;
 	var xPosResetted:Bool = false;
 
@@ -13356,7 +13032,6 @@ class AlphabetPsych extends FlxTypedSpriteGroup
 
 		_finalText = _text;
 		this.text = _text;
-		// trace(this.text);
 		this.typed = isTyped;
 		isBold = bold;
 
@@ -13424,7 +13099,6 @@ class AlphabetPsych extends FlxTypedSpriteGroup
 
 				consecutiveSpaces = 0;
 
-				// var letter = ScriptedFlxSprite.scriptInit('AlphaCharacterPsych', 20 * loopNum, 0, textSize);
 				var letter = ScriptedFlxSprite.scriptInit('AlphaCharacterPsych', xPos, 0, textSize);
 
 				if (isBold)
@@ -13451,7 +13125,6 @@ class AlphabetPsych extends FlxTypedSpriteGroup
 
 				lastSprite = letter;
 			}
-			// trace(character);
 
 			loopNum += 1;
 		}
@@ -13476,8 +13149,6 @@ class AlphabetPsych extends FlxTypedSpriteGroup
 	{
 		_finalText = text;
 		doSplitWords();
-
-		// trace(arrayShit);
 
 		speed2 = speed;
 
@@ -13509,7 +13180,7 @@ class AlphabetPsych extends FlxTypedSpriteGroup
 
 	public static var symbols:String = "|~#$%()*+-:;<=>@[]^_.,'!?";
 
-	var LONG_TEXT_ADD:Float = -24; // text is over 2 rows long, make it go up a bit
+	var LONG_TEXT_ADD:Float = -24;
 
 	public function timerCheck(?tmr:FlxTimer = null)
 	{
@@ -13547,8 +13218,6 @@ class AlphabetPsych extends FlxTypedSpriteGroup
 					lastSprite.updateHitbox();
 					xPos += lastSprite.width * lastSprite.scale.x;
 
-					// if (isBold)
-					// xPos -= 80;
 				}
 				else
 					xPosResetted = false;
@@ -13557,7 +13226,6 @@ class AlphabetPsych extends FlxTypedSpriteGroup
 
 				consecutiveSpaces = 0;
 
-				// var letter = ScriptedFlxSprite.scriptInit('AlphaCharacterPsych', 30 * loopNum, 0, textSize);
 				var letter = ScriptedFlxSprite.scriptInit('AlphaCharacterPsych', xPos, 55 * yMulti, textSize);
 				letter.scriptSet('row', curRow);
 				var boldSuffix = isBold ? "Bold" : "";
@@ -13684,7 +13352,6 @@ class AlphaCharacterPsych extends FlxSprite
 			case "'":
 				y -= 20 * textSize;
 			case '-':
-				// x -= 35 - (90 * (1.0 - textSize));
 				y += 20 * textSize;
 			case '(':
 				x -= 65 * textSize;
@@ -13753,7 +13420,6 @@ class AlphaCharacterPsych extends FlxSprite
 			case "'":
 				y -= 20;
 			case '-':
-				// x -= 35 - (90 * (1.0 - textSize));
 				y -= 16;
 		}
 	}
@@ -13840,7 +13506,7 @@ class AmtakeXmas extends NoteStyle
   }
 }
 
-class AmTakeBase extends NoteStyle
+class AmTakeBase extends NoteStyle implements IScriptedClass
 {
   var HOLD_COVER_ZINDEX:Int = 5;
 
@@ -13866,7 +13532,7 @@ class AmTakeBase extends NoteStyle
     var coversOpp = ps.opponentStrumline.noteHoldCovers;
     if (coversOpp == null || coversOpp.zIndex == HOLD_COVER_ZINDEX) return;
 
-    covers.zIndex = HOLD_COVER_ZINDEX;
+	covers.zIndex = HOLD_COVER_ZINDEX;
     coversOpp.zIndex = HOLD_COVER_ZINDEX;
     ps.playerStrumline.refresh();
     ps.opponentStrumline.refresh();
@@ -13880,7 +13546,6 @@ class ZoomCameraClassicLerpModule extends Module
   static final DEFAULT_DURATION:Float = 4.0;
   static final DEFAULT_MODE:String = 'direct';
 
-  // How close (in zoom units) is "close enough" to snap to the target and stop lerping.
   static final SNAP_THRESHOLD:Float = 0.0015;
 
   var lerping:Bool = false;
@@ -13901,8 +13566,6 @@ class ZoomCameraClassicLerpModule extends Module
     var ease:String = event.eventData.getString('ease');
     if (ease != 'classicLerp')
     {
-      // Not our event. If a "real" ZoomCamera event comes through while we were
-      // still chasing a classicLerp target, hand control back to the vanilla tween.
       lerping = false;
       return;
     }
@@ -13910,7 +13573,6 @@ class ZoomCameraClassicLerpModule extends Module
     if (PlayState.instance == null || PlayState.instance.currentStage == null) return;
     if (PlayState.instance.isMinimalMode) return;
 
-    // Same defaults/fields as ZoomCameraSongEvent.handleEvent().
     var zoom:Float = event.eventData.getFloat('zoom');
     if (zoom == null) zoom = DEFAULT_ZOOM;
 
@@ -13928,22 +13590,17 @@ class ZoomCameraClassicLerpModule extends Module
     if (mode == null) mode = DEFAULT_MODE;
     var isDirectMode:Bool = mode == 'direct';
 
-    // This is OUR event now, don't let the vanilla handler also process it.
     event.cancelEvent();
 
-    // Stop any vanilla zoom tween so it doesn't fight the lerp.
     PlayState.instance.cancelCameraZoomTween();
 
-    // Same absolute-target math as PlayState.tweenCameraZoom().
     lerpTargetZoom = scaledZoom * (isDirectMode ? FlxCamera.defaultZoom : PlayState.instance.stageZoom);
 
-    // Reuse "duration" (in steps) as the nominal settle time for the decay lerp.
     var durSeconds:Float = Conductor.instance.stepLengthMs * duration / Constants.MS_PER_SEC;
     lerpDuration = durSeconds > 0 ? durSeconds : 0.5;
 
     if (durSeconds <= 0)
     {
-      // Duration 0 (or INSTANT-equivalent) = snap immediately, same as vanilla.
       PlayState.instance.currentCameraZoom = lerpTargetZoom;
       lerping = false;
     }
@@ -13969,7 +13626,6 @@ class ZoomCameraClassicLerpModule extends Module
     if (next == lerpTargetZoom) lerping = false;
   }
 
-  // Cut the lerp short on retry/leaving PlayState so state doesn't leak between plays.
   override public function onSongRetry(event:SongRetryEvent):Void
   {
     super.onSongRetry(event);
@@ -13988,15 +13644,6 @@ class ZoomCameraClassicLerpModule extends Module
   }
 }
 
-// ------------------------------------------------------------------
-// FocusCamera + stagePoint
-// El chart de dadbattle-animania trae en el FocusCamera un valor extra "stagePoint" (distinto de "NONE"
-// cuando esta activo). Este modulo lo trata como un punto de camara: el cameraFollowPoint va directo a
-// (x, y) del evento, sin enfocar a ningun personaje (equivale a char = -1 "Position" de V-Slice, que
-// ignora el char del evento). La duracion y el ease se respetan igual que en FocusCamera.
-// Si stagePoint es NONE (o no existe) no se toca nada y corre el FocusCamera normal.
-// "cameraPoint" se acepta como alias de "stagePoint".
-// ------------------------------------------------------------------
 class FocusCameraStagePointModule extends Module
 {
 	function new()
@@ -14012,7 +13659,6 @@ class FocusCameraStagePointModule extends Module
 		return point != null && point != "" && point != "NONE";
 	}
 
-	// Mismo criterio que SongEvent.EASE_TYPE_DIR_REGEX: el ease ya trae la direccion (ej. "sineIn").
 	function easeHasDirection(ease:String):Bool
 	{
 		var low:String = ease.toLowerCase();
@@ -14064,14 +13710,12 @@ class FocusCameraStagePointModule extends Module
 			}
 		}
 
-		// Un evento cancelado no pasa por SongEventRegistry.handleEvent, asi que hay que marcarlo como activado
-		// o PlayState lo volveria a lanzar en cada frame.
 		event.cancelEvent();
 		data.activated = true;
 
 		switch (ease)
 		{
-			case "CLASSIC": // Sin ease: se coloca el follow point directamente.
+			case "CLASSIC":
 				state.resetCamera(false, false, false);
 				state.cancelCameraFollowTween();
 				state.cameraFollowPoint.setPosition(targetX, targetY);
@@ -14105,7 +13749,6 @@ class Week1AmTakeLevel extends Level
       chromaShader = new FlxRuntimeShader(Assets.getText(Paths.frag('chromaKey')));
     }
 
-    // Si el fondo es una imagen no hay un color que usar; cae a un gris neutro.
     var r:Float = 0.5;
     var g:Float = 0.5;
     var b:Float = 0.5;
@@ -14178,7 +13821,6 @@ class Week1AnimaniaPropCleanup extends Module
     {
       if (prop == null || prop.shader == null) continue;
 
-      // Solo toca shaders chromaKey (se identifica por su uniform `bg_col`).
       var src:String = prop.shader.glFragmentSource;
       if (src != null && src.indexOf('bg_col') != -1) prop.shader = null;
     }
@@ -14243,4 +13885,58 @@ class KomiCantCommunicateLevel extends Level
 	{
 		return false;
 	}
+}
+
+class HoldNoteAlphaModule extends Module
+{
+  var HOLD_ALPHA:Float = 0.7;
+
+  function new()
+  {
+    super('HoldNoteAlphaModule', 1000);
+  }
+
+  function isTargetStyle():Bool
+  {
+    var play:PlayState = PlayState.instance;
+    if (play == null) return false;
+    if (play.currentChart == null) return false;
+
+    var id:String = play.currentChart.noteStyle;
+    return id == 'amtake-base' || id == 'amtake-xmas';
+  }
+
+  function applyAlpha(strumline:Dynamic):Void
+  {
+    if (strumline == null) return;
+
+    applyToGroup(strumline.holdNotes);
+
+    applyToGroup(Reflect.field(strumline, 'holdNotesVwoosh'));
+  }
+
+  function applyToGroup(group:Dynamic):Void
+  {
+    if (group == null) return;
+
+    for (hold in group.members)
+    {
+      if (hold == null || !hold.alive) continue;
+
+      if (hold.alpha <= 0) continue;
+
+      if (hold.alpha != HOLD_ALPHA) hold.alpha = HOLD_ALPHA;
+    }
+  }
+
+  override function onUpdate(event:UpdateScriptEvent):Void
+  {
+    super.onUpdate(event);
+
+    if (!isTargetStyle()) return;
+
+    var play:PlayState = PlayState.instance;
+    applyAlpha(play.playerStrumline);
+    applyAlpha(play.opponentStrumline);
+  }
 }

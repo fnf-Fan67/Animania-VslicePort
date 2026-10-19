@@ -8,7 +8,10 @@ import flixel.util.FlxColor;
 import funkin.FunkinMemory;
 import funkin.Conductor;
 import funkin.PlayerSettings;
+import funkin.input.Controls;
 import funkin.audio.FunkinSound;
+import funkin.ui.UIStateMachine;
+import funkin.ui.UIStateMachine.UIState;
 import funkin.audio.waveform.WaveformSprite;
 import funkin.audio.waveform.WaveformSprite.WaveformOrientation;
 import funkin.graphics.FunkinCamera;
@@ -22,6 +25,7 @@ import funkin.ui.mainmenu.MainMenuState;
 import funkin.ui.options.OptionsState;
 import funkin.ui.title.TitleState;
 import funkin.ui.story.StoryMenuState;
+import funkin.ui.debug.DebugMenuSubState;
 import funkin.ui.FullScreenScaleMode;
 import funkin.util.TouchUtil;
 
@@ -236,6 +240,14 @@ class NewMainMenuState extends MusicBeatState
   // Zoom de cámara = (1 + bopAdd) * transZoom: el bop y el zoom de intro/outro no se pisan entre sí.
   var bopAdd:Float = 0;
   var transZoom:Float = 1.0;
+
+  var uiStateMachine:UIStateMachine = new UIStateMachine();
+  var canInteract(get, never):Bool;
+
+  function get_canInteract():Bool
+  {
+    uiStateMachine.canInteract();
+  }
 
   function new()
   {
@@ -806,13 +818,11 @@ class NewMainMenuState extends MusicBeatState
 
     addMenuButton('options', 'options', OPTIONS_X, OPTIONS_Y, OPTIONS_BOUNDS, function() {
       // OptionsState al salir hace switchState(new MainMenuState()): el redirect nos devuelve a este menú.
-      installMainMenuRedirect();
       FlxG.switchState(new OptionsState());
     });
 
     addMenuButton('credits', 'credits', CREDITS_X, CREDITS_Y, CREDITS_BOUNDS, function() {
       // CreditsState también vuelve con switchState(new MainMenuState()).
-      installMainMenuRedirect();
       FlxG.switchState(new CreditsState());
     });
 
@@ -830,8 +840,17 @@ class NewMainMenuState extends MusicBeatState
    * para todas las entradas al menú original (Options, Credits, Freeplay, Story, canciones...).
    * Se deja la función para no tocar los botones que la llaman.
    */
-  function installMainMenuRedirect():Void
+  function debugRedirect():Void
   {
+    if (!canInteract) return;
+
+    #if FEATURE_DEBUG_MENU
+    if (PlayerSettings.player1.controls.DEBUG_MENU)
+    {
+      persistentUpdate = false;
+      FlxG.state.openSubState(new DebugMenuSubState());
+    }
+    #end
   }
 
   /**
@@ -852,7 +871,6 @@ class NewMainMenuState extends MusicBeatState
     // CUTOUT_WIDTH es estático: se actualiza antes de cargar Freeplay (igual que el menú original).
     FreeplayState.CUTOUT_WIDTH = FullScreenScaleMode.gameCutoutSize.x / 1.5;
 
-    installMainMenuRedirect();
 
     // La cámara de las barras se dibuja encima de todo, incluido el substate de Freeplay: la ocultamos.
     if (introCam != null) introCam.visible = false;
@@ -1145,6 +1163,7 @@ class NewMainMenuState extends MusicBeatState
 
     updateIntro(elapsed);
     updateOutro(elapsed);
+    debugRedirect();
 
     // El bop vuelve suavemente a 0 entre beats; el zoom final combina bop + intro/outro.
     bopAdd = bopAdd * Math.exp(-BOP_DECAY * elapsed);

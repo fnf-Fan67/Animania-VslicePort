@@ -19,6 +19,7 @@ import funkin.ui.mainmenu.MainMenuState;
 import funkin.util.MathUtil;
 import funkin.util.SwipeUtil;
 import funkin.util.TouchUtil;
+import funkin.util.WindowUtil;
 
 /**
  * Title custom (WIP) - Capa 1: intro con textos + gradiente + logo.
@@ -281,6 +282,8 @@ class NewTitleState extends MusicBeatState
     persistentUpdate = true;
     camBaseZoom = FlxG.camera.zoom;
 
+    WindowUtil.setWindowTitle("Friday Night Funkin' Animania!");
+
     Cursor.hide();
 
     loadWacky();
@@ -303,7 +306,6 @@ class NewTitleState extends MusicBeatState
 
     if (isIntroSeen() && INTRO_ONLY_ONCE)
     {
-      // Ya se vio la intro en esta sesion: directo al logo. finishIntro() pone LOOP_MUSIC (sin reiniciarla si ya estaba sonando).
       restartLoopOnFinish = false;
       introStarted = true;
       finishIntro();
