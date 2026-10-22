@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="defaultDiffs.png">
+	<!-- Created with Adobe Animate version 24.0.0.305 -->
+	<!-- http://www.adobe.com/products/animate.html -->
+	<SubTexture name="easy basic0000" x="699" y="210" width="275" height="137"/>
+	<SubTexture name="easy white0000" x="813" y="1" width="275" height="137"/>
+	<SubTexture name="hard basic0000" x="1" y="1" width="405" height="208"/>
+	<SubTexture name="hard white0000" x="407" y="1" width="405" height="208"/>
+	<SubTexture name="normal basic0000" x="1" y="210" width="348" height="140"/>
+	<SubTexture name="normal white0000" x="350" y="210" width="348" height="140"/>
+</TextureAtlas>

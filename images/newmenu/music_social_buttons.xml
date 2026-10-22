@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="menu_social_buttons.png">
+	<!-- Created using the Spritesheet and XML generator -->
+	<!-- https://uncertainprod.github.io/FNF-Spritesheet-XML-generator-Web -->
+	<SubTexture name="amazon0000" x="0" y="93" width="112" height="94" frameX="2" frameY="2" frameWidth="108" frameHeight="90"/>
+	<SubTexture name="apple music button0000" x="122" y="76" width="103" height="90" frameX="2" frameY="2" frameWidth="100" frameHeight="86"/>
+	<SubTexture name="soundcloud button0000" x="122" y="0" width="126" height="76" frameX="-20" frameY="2" frameWidth="122" frameHeight="72"/>
+	<SubTexture name="spotify button0000" x="248" y="0" width="88" height="88" frameX="-20" frameY="2" frameWidth="84" frameHeight="84"/>
+	<SubTexture name="youtube button0000" x="0" y="0" width="122" height="93" frameX="2" frameY="2" frameWidth="118" frameHeight="89"/>
+</TextureAtlas>

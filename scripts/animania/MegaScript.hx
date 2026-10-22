@@ -105,11 +105,55 @@ class AmTweenPauseModule extends Module
 		super('AmTweenPauseModule', {state: PlayState});
 	}
 
+	var keepCams = [];
+	var keepFilters = [];
+	var keepFn = null;
+
 	override function onPause(event:PauseScriptEvent):Void
 	{
 		super.onPause(event);
 		if (event.eventCanceled) return;
 		AmTweenPause.pauseAll();
+
+		var ps = PlayState.instance;
+		if (ps == null) return;
+
+		keepCams = [ps.camGame, ps.camHUD];
+		keepFilters = [];
+		var i = 0;
+		while (i < keepCams.length)
+		{
+			var f = (keepCams[i] != null) ? keepCams[i].filters : null;
+			keepFilters[i] = (f != null && f.length > 0) ? f : null;
+			i = i + 1;
+		}
+
+		if (keepFn == null)
+		{
+			keepFn = function() {
+				var cur = PlayState.instance;
+				if (cur == null || cur.camGame != keepCams[0])
+				{
+					FlxG.signals.postUpdate.remove(keepFn);
+					keepFn = null;
+					return;
+				}
+				restoreCamFilters();
+			};
+			FlxG.signals.postUpdate.add(keepFn);
+		}
+	}
+
+	function restoreCamFilters():Void
+	{
+		var i = 0;
+		while (i < keepCams.length)
+		{
+			var cam = keepCams[i];
+			var saved = keepFilters[i];
+			if (cam != null && saved != null && (cam.filters == null || cam.filters.length != saved.length)) cam.filters = saved;
+			i = i + 1;
+		}
 	}
 
 	override function onResume(event:ScriptEvent):Void
@@ -117,6 +161,15 @@ class AmTweenPauseModule extends Module
 		super.onResume(event);
 		if (event.eventCanceled) return;
 		AmTweenPause.resumeAll();
+
+		restoreCamFilters();
+		if (keepFn != null)
+		{
+			FlxG.signals.postUpdate.remove(keepFn);
+			keepFn = null;
+		}
+		keepCams = [];
+		keepFilters = [];
 	}
 }
 
@@ -1346,6 +1399,8 @@ class DadBattleAnimania extends Song
 	var hideOpponentCovers = true;
 	var oppAnchorDX = 0.0;
 	var oppAnchorDY = 0.0;
+	var oppShakeIntensity = 0.05;
+	var oppShakeTime = 0.1;
 
 	var mlOpp = null;
 	var mlPlr = null;
@@ -1365,7 +1420,8 @@ class DadBattleAnimania extends Song
 	function mlLane()
 	{
 		return {ox: 0.0, oy: 0.0, bobAmp: 0.0, alpha: 1.0, pulse: 1.0, ax: 0.0, ay: 0.0, pa: 1.0,
-			b0: 0.0, b1: 0.0, b2: 0.0, b3: 0.0, offs: [0.0, 0.0, 0.0, 0.0], ry: [0.0, 0.0, 0.0, 0.0], waveOn: false};
+			b0: 0.0, b1: 0.0, b2: 0.0, b3: 0.0, offs: [0.0, 0.0, 0.0, 0.0], ry: [0.0, 0.0, 0.0, 0.0], waveOn: false,
+			skI: 0.0, skT: [0.0, 0.0, 0.0, 0.0], skH: [false, false, false, false], sx: [0.0, 0.0, 0.0, 0.0], sy: [0.0, 0.0, 0.0, 0.0]};
 	}
 
 	function mlTo(name, L, field, target, secs, ease, delay)
@@ -1412,6 +1468,13 @@ class DadBattleAnimania extends Song
 		{
 			if (L.ry[c] != 0 && c < recs.length && recs[c] != null) recs[c].y -= L.ry[c];
 			L.ry[c] = 0.0;
+			if ((L.sx[c] != 0 || L.sy[c] != 0) && c < recs.length && recs[c] != null)
+			{
+				recs[c].x -= L.sx[c];
+				recs[c].y -= L.sy[c];
+			}
+			L.sx[c] = 0.0;
+			L.sy[c] = 0.0;
 			c += 1;
 		}
 		L.waveOn = false;
@@ -1467,6 +1530,7 @@ class DadBattleAnimania extends Song
 			mlOpp.ox = -200;
 			mlOpp.oy = dadYYPos - 50;
 			mlOpp.bobAmp = 7.5;
+			mlOpp.skI = oppShakeIntensity;
 			mlBob("opp", mlOpp, 1.309);
 		}
 
@@ -1560,6 +1624,11 @@ class DadBattleAnimania extends Song
 		n.alpha = L.alpha;
 		var h = n.holdNoteSprite;
 		if (h != null) h.alpha = L.alpha;
+		if (h != null && lane == 0 && !h.flipY)
+		{
+			h.flipY = true;
+			h.updateClipping();
+		}
 
 		n.yOffset = L.offs[n.direction % 4];
 		if (h != null) h.yOffset = L.offs[n.direction % 4];
@@ -1583,6 +1652,35 @@ class DadBattleAnimania extends Song
 		{
 			s.y += L.oy - L.ay;
 			L.ay = L.oy;
+		}
+
+		if (L.skI > 0)
+		{
+			var skT = L.skT;
+			var skH = L.skH;
+			var sx = L.sx;
+			var sy = L.sy;
+			var k = 0;
+			while (k < 4)
+			{
+				var tx = 0.0;
+				var ty = 0.0;
+				if (skT[k] > 0 || skH[k])
+				{
+					skT[k] -= FlxG.elapsed;
+					var mag = L.skI * recs[k].width;
+					tx = FlxG.random.float(-mag, mag);
+					ty = FlxG.random.float(-mag, mag);
+				}
+				if (tx != sx[k] || ty != sy[k])
+				{
+					recs[k].x += tx - sx[k];
+					recs[k].y += ty - sy[k];
+					sx[k] = tx;
+					sy[k] = ty;
+				}
+				k += 1;
+			}
 		}
 
 		var amp = L.bobAmp;
@@ -1764,6 +1862,7 @@ class DadBattleAnimania extends Song
 		else if (dir == 3) xx += 35;
 
 		mlInIdle = false;
+		mlOpp.skT[dir] = oppShakeTime;
 		mlTo("opp", mlOpp, "ox", xx, 0.1, FlxEase.circOut, 0);
 		mlTo("opp", mlOpp, "oy", yy, 0.1, FlxEase.circOut, 0);
 	}
@@ -1787,6 +1886,11 @@ class DadBattleAnimania extends Song
 	{
 		var hm = game.opponentStrumline.holdNotes.members;
 		var n = hm.length;
+		var skH = mlOpp.skH;
+		skH[0] = false;
+		skH[1] = false;
+		skH[2] = false;
+		skH[3] = false;
 		var i = 0;
 		while (i < n)
 		{
@@ -1794,7 +1898,11 @@ class DadBattleAnimania extends Song
 			i += 1;
 			if (h == null || !h.alive) continue;
 
-			if (h.hitNote && !h.missedNote && h.sustainLength > 0) mlDrainHealth(game, 0.075 * elapsed);
+			if (h.hitNote && !h.missedNote && h.sustainLength > 0)
+			{
+				mlDrainHealth(game, 0.075 * elapsed);
+				skH[h.noteDirection % 4] = true;
+			}
 		}
 	}
 
@@ -1911,6 +2019,7 @@ class DadBattleAnimania extends Song
 	uniform float iTime;
 	uniform vec2 resolution;
 	uniform vec3 rayColor;
+	uniform float outAlpha;
 
 	float rayStrength(vec2 raySource, vec2 rayRefDirection, vec2 coord, float seedA, float seedB, float speed)
 	{
@@ -1986,12 +2095,12 @@ class DadBattleAnimania extends Song
 		float spriteAlpha = flixel_texture2D(bitmap, uv).a;
 
 		rays.rgb *= spriteAlpha;
-		gl_FragColor = vec4(rays.rgb, spriteAlpha);
+		gl_FragColor = vec4(rays.rgb, spriteAlpha * outAlpha);
 	}";
 
 	function applyStagePosition(char, stageCharData)
 	{
-		if (char == null || stageCharData == null) return;
+		if (!Save.instance.modOptions['lowQuality'] && char == null || stageCharData == null) return;
 
 		char.zIndex = stageCharData.zIndex;
 		char.x = stageCharData.position[0] - char.characterOrigin.x;
@@ -2056,6 +2165,7 @@ class DadBattleAnimania extends Song
 
 	function updateDangerBar(game, elapsed)
 	{
+		if (!Save.instance.modOptions['shaders']) return;
 		trySetupDangerBar(game);
 		if (dangerBar == null || dangerShader == null) return;
 
@@ -2094,12 +2204,19 @@ class DadBattleAnimania extends Song
 
 		var holyGrad = stage.getNamedProp("holygrad");
 		if (holyGrad != null) holyGrad.alpha = 0;
+		#if mobile
+		if (holyGrad != null) holyGrad.blend = BlendMode.SCREEN;
+		#end
 		godRaysSpr.zIndex = (holyGrad != null) ? holyGrad.zIndex - 2 : stage.getDad().zIndex - 3;
 
 		godRaysShader = new FlxRuntimeShader(godLight);
 		godRaysShader.setFloatArray("rayColor", [1.3, 1.2, 0.9]);
 		godRaysShader.setFloatArray("resolution", [godRaysSpr.width, godRaysSpr.height]);
 		godRaysShader.setFloat("iTime", 0);
+		godRaysShader.setFloat("outAlpha", 1.0);
+		#if mobile
+		godRaysShader.setFloat("outAlpha", 0.0);
+		#end
 
 		godRaysSpr.shader = godRaysShader;
 		godRaysSpr.blend = BlendMode.ADD;
@@ -2502,31 +2619,35 @@ class DadBattleAnimania extends Song
 			if (overlayBaseAlpha != null) overlay.alpha = overlayBaseAlpha;
 		}
 
-		if (godRaysSpr != null)
+		if (!Save.instance.modOptions['lowQuality'])
 		{
-			FlxTween.cancelTweensOf(godRaysSpr);
-			godRaysSpr.alpha = 0;
+			if (godRaysSpr != null)
+			{
+				FlxTween.cancelTweensOf(godRaysSpr);
+				godRaysSpr.alpha = 0;
+			}
+			var holyGrad = stage.getNamedProp("holygrad");
+			if (holyGrad != null)
+			{
+				FlxTween.cancelTweensOf(holyGrad);
+				holyGrad.alpha = 0;
+			}
 		}
-		var holyGrad = stage.getNamedProp("holygrad");
-		if (holyGrad != null)
+		if (Save.instance.modOptions['shaders'])
 		{
-			FlxTween.cancelTweensOf(holyGrad);
-			holyGrad.alpha = 0;
-		}
+			if (chromChangeTween != null)
+			{
+				chromChangeTween.cancel();
+				chromChangeTween = null;
+			}
+			if (chromShader != null)
+			{
+				chromShader.setFloat("strength", .1);
+				game.camGame.filters = [new ShaderFilter(chromShader)];
+			}
 
-		if (chromChangeTween != null)
-		{
-			chromChangeTween.cancel();
-			chromChangeTween = null;
+			dangerPulse = -300.0;
 		}
-		if (chromShader != null)
-		{
-			chromShader.setFloat("strength", .1);
-			game.camGame.filters = [new ShaderFilter(chromShader)];
-		}
-
-		dangerPulse = -300.0;
-
 		mlInit(game);
 	}
 
@@ -2543,7 +2664,11 @@ class DadBattleAnimania extends Song
 		if (holyGrad != null)
 		{
 			FlxTween.cancelTweensOf(holyGrad);
-			FlxTween.tween(holyGrad, {alpha: 0.6}, 3, {startDelay: 2, ease: FlxEase.sineInOut});
+			var holyAlpha = 0.6;
+			#if mobile
+			holyAlpha = 0.1;
+			#end
+			FlxTween.tween(holyGrad, {alpha: holyAlpha}, 3, {startDelay: 2, ease: FlxEase.sineInOut});
 			FlxTween.tween(holyGrad, {alpha: 0}, 6, {startDelay: 20.75, ease: FlxEase.sineInOut});
 		}
 	}
@@ -2734,7 +2859,8 @@ class DadBattleAnimania extends Song
 		if (vid != null && (videoPlaying || videoPending)) vid.resume();
 
 		if (chromShader == null) return;
-		game.camGame.filters = [new ShaderFilter(chromShader)];
+		var cf = game.camGame.filters;
+		if (cf == null || cf.length == 0) game.camGame.filters = [new ShaderFilter(chromShader)];
 	}
 
 	function onSongEvent(event)
@@ -2984,12 +3110,18 @@ void main() {
 	{
 		super.onCreate(event);
 
-		fireFliesShader = null;
-		fireFliesSpr = null;
-		fireFliesTime = 0;
+		if (Save.instance.modOptions['shaders'])
+		{
+			fireFliesShader = null;
+			fireFliesSpr = null;
+			fireFliesTime = 0;
+		}
 
 		createFadeIn();
-		createFireflies();
+		if (Save.instance.modOptions['shaders'])
+		{
+			createFireflies();
+		}
 	}
 
 	function createFadeIn():Void
@@ -3010,34 +3142,6 @@ void main() {
 		FlxTween.tween(screeeen, {alpha: 0}, 1, {ease: FlxEase.sineIn});
 
 		play.refresh();
-	}
-
-	override function onCountdownStep(event)
-	{
-		super.onCountdownStep(event);
-
-		if (!playEggnogCountdownSounds)
-			return;
-
-		var soundPath:String = null;
-
-		switch (Std.string(event.step))
-		{
-			case "THREE":
-				soundPath = 'intro3';
-			case "TWO":
-				soundPath = 'intro2';
-			case "ONE":
-				soundPath = 'intro1';
-			case "GO":
-				soundPath = 'introGo';
-			default:
-		}
-
-		if (soundPath == null)
-			return;
-
-		FunkinSound.playOnce(Paths.sound("week5/" + soundPath + "-eggnog", "shared"), 1);
 	}
 
 	override function onBeatHit(event)
@@ -3125,6 +3229,13 @@ void main() {
 		fireFliesShader.setFloat("uFireflySize", 0.01);
 		fireFliesShader.setFloat("uGlowRange", 0.2);
 		fireFliesShader.setFloatArray("iResolution", [fireFliesSpr.width, fireFliesSpr.height]);
+	}
+
+	override function onCountdownStart(event)
+	{
+		super.onCountdownStart(event);
+
+		Countdown.soundSuffix = '-eggnog';
 	}
 
 	override function onUpdate(event)
@@ -3230,11 +3341,14 @@ class WinterHorrorlandAnimaniaSong extends Song
     ps = PlayState.instance;
     if (ps == null) return;
 
-    resetRuntimeState();
-    setupChroma();
+	if (Save.instance.modOptions['shaders'])
+	{
+		createSnow();
+		resetRuntimeState();
+		setupChroma();
+	}
     styleSubtitles();
     setIntroCamera();
-    createSnow();
 
     ps.opponentStrumline.x -= FlxG.width / 1.5;
     ps.opponentStrumline.alpha = 0;
@@ -3283,10 +3397,13 @@ class WinterHorrorlandAnimaniaSong extends Song
 
     allowEnd = false;
     cancelTimers();
-    chromaEffect(0, 0, null);
-    applyChromaFilter();
+	if (Save.instance.modOptions['shaders'])
+	{
+		chromaEffect(0, 0, null);
+		applyChromaFilter();
+	    resetSnow();
+	}
     setIntroCamera();
-    resetSnow();
 
     if (ps.isChartingMode) return;
 
@@ -3389,19 +3506,7 @@ class WinterHorrorlandAnimaniaSong extends Song
     ps.isInCutscene = false;
     chromaEffect(.05, 2, "sineInOut");
 
-    if (SKIP_COUNTDOWN && !charting)
-    {
-      event.cancel();
-      skipCountdown();
-    }
-  }
-
-  function skipCountdown()
-  {
-    Countdown.stopCountdown();
-    ps.isInCountdown = true;
-    ps.camHUD.visible = true;
-    Conductor.instance.update(ps.startTimestamp);
+    FlxTimer.wait(0, () -> Countdown.skipCountdown());
   }
 
   function startCutscene()
@@ -3802,28 +3907,31 @@ class WinterHorrorlandAnimaniaSong extends Song
 
   function setupChroma()
   {
-    try
-    {
-      chromShader = new FlxRuntimeShader(Assets.getText(Paths.frag("chromaticAbberation")));
-      chromShader.setFloat("strength", 0);
-      applyChromaFilter();
-    }
-    catch (e:Dynamic)
-    {
-      chromShader = null;
-      trace("[winter-horrorland-animania] No se pudo crear el shader de aberración cromática: " + e);
-    }
+	if (Save.instance.modOptions['shaders'])
+	{
+		try
+		{
+			chromShader = new FlxRuntimeShader(Assets.getText(Paths.frag("chromaticAbberation")));
+			chromShader.setFloat("strength", 0);
+			applyChromaFilter();
+		}
+		catch (e:Dynamic)
+		{
+			chromShader = null;
+	      trace("[winter-horrorland-animania] No se pudo crear el shader de aberración cromática: " + e);
+		}
+	}
   }
 
   function applyChromaFilter()
   {
-    if (chromShader == null || ps == null) return;
+    if (Save.instance.modOptions['shaders'] && chromShader == null || ps == null) return;
     ps.camGame.filters = [new ShaderFilter(chromShader)];
   }
 
   function chromaEffect(strength, time, easeStr)
   {
-    if (chromShader == null) return;
+    if (!Save.instance.modOptions['shaders'] && chromShader == null) return;
 
     if (chromTween != null) chromTween.cancel();
     chromTween = null;
@@ -8148,8 +8256,7 @@ void main()
 		if (play == null || play.isChartingMode)
 			return;
 
-    skipCountdown();
-		event.cancel();
+		FlxTimer.wait(0, () -> Countdown.skipCountdown());
 
 		play.camHUD.alpha = 0;
 
@@ -8161,14 +8268,6 @@ void main()
 		FlxTimer.wait(Conductor.instance.beatLengthMs / 1000,
 			() -> play.tweenCameraZoom(1.2, Conductor.instance.beatLengthMs * 4 / 1000, false, FlxEase.cubeOut));
 	}
-
-  function skipCountdown()
-  {
-    Countdown.stopCountdown();
-    PlayState.instance.isInCountdown = true;
-    PlayState.instance.camHUD.visible = true;
-    Conductor.instance.update(PlayState.instance.startTimestamp);
-  }
 
 	function onSongStart(event)
 	{
@@ -9078,11 +9177,7 @@ class PhoneCallStreetStage extends ScriptedStage
 
 		resetPhoneState();
 
-		if (!ps.isChartingMode)
-		{
-			event.cancel();
-			skipCountdown();
-		}
+		FlxTimer.wait(0, () -> Countdown.skipCountdown());
 	}
 
 	function setComboPopUpsVisible(how:Bool)
@@ -9090,14 +9185,6 @@ class PhoneCallStreetStage extends ScriptedStage
 		var popUps = ModuleHandler.getModule('RatingComboModule').ratingPopUps;
 		if (popUps != null)
 			popUps.visible = how;
-	}
-
-	function skipCountdown()
-	{
-		Countdown.stopCountdown();
-		ps.isInCountdown = true;
-		ps.camHUD.visible = true;
-		Conductor.instance.update(ps.startTimestamp);
 	}
 
 	override function onSongRetry(event)
@@ -10082,18 +10169,6 @@ class SoloTime extends Module
 {
     var MULTI_SHIT = .5;
     var OFFSET = 0.25;
-
-    override function onSongLoaded(event:SongLoadScriptEvent)
-    {
-		super.onSongLoaded();
-		if (PlayState.instance == null || PlayState.instance.currentDifficulty == null) return;
-		var currentDifficulty:PlayState = PlayState.instance.currentDifficulty;
-        if (currentDifficulty == "easy" || currentDifficulty == "normal" || currentDifficulty == "hard")
-        {
-            FunkinMemory.cacheTexture(Paths.image("ui/times/solo_time"));
-            FunkinMemory.cacheTexture(Paths.image("ui/times/solo_time-xmas"));
-        }
-    }
 
     override function onSongEvent(event:SongEventScriptEvent) {
 		var camHUD:FunkinCamera = PlayState.instance.camHUD;
@@ -13917,7 +13992,7 @@ class HoldNoteAlphaModule extends Module
 
   function applyToGroup(group:Dynamic):Void
   {
-    if (group == null) return;
+    if (group == null || group.members == null) return;
 
     for (hold in group.members)
     {
@@ -13939,4 +14014,211 @@ class HoldNoteAlphaModule extends Module
     applyAlpha(play.playerStrumline);
     applyAlpha(play.opponentStrumline);
   }
+}
+
+class StoryCarryoverModule extends Module
+{
+  // ---------------- Configuración ----------------
+
+  // Cuántos beats dura la transición (empieza en el "3" del countdown y termina en el "Go!" si vale 3).
+  var BLEND_BEATS:Float = 3.0;
+
+  // ---------------- Datos guardados al terminar la canción ----------------
+
+  var hasCarry:Bool = false;
+  var carryHealth:Float = 1.0;
+  var carryCamX:Float = 0.0;
+  var carryCamY:Float = 0.0;
+  var carryStageId:String = '';
+  var carryNextSongId:String = '';
+
+  // ---------------- Estado de la transición ----------------
+
+  var blendPending:Bool = false; // carry aplicado, esperando a que arranque el countdown
+  var blendActive:Bool = false; // transición corriendo
+  var blendStartPos:Float = 0.0;
+  var blendFromHealth:Float = 1.0;
+
+  public function new()
+  {
+    super('storyCarryoverModule', 1000);
+  }
+
+  function clearCarry():Void
+  {
+    hasCarry = false;
+    blendPending = false;
+    blendActive = false;
+  }
+
+  // ------------------------------------------------------------------
+  // 1) Al terminar una canción: guardar vida y cámara
+  // ------------------------------------------------------------------
+  override public function onSongEnd(event:ScriptEvent):Void
+  {
+    super.onSongEnd(event);
+
+    var ps:PlayState = PlayState.instance;
+    if (ps == null || !PlayStatePlaylist.isStoryMode || PlayStatePlaylist.playlistSongIds.length == 0)
+    {
+      // Última canción de la week (o no es story): no hay nada que mantener.
+      clearCarry();
+      return;
+    }
+
+    hasCarry = true;
+    carryHealth = ps.health;
+
+    // Centro REAL de la cámara en este momento (no el follow point, que puede ir por delante si hay un tween).
+    carryCamX = FlxG.camera.scroll.x + FlxG.camera.width * 0.5;
+    carryCamY = FlxG.camera.scroll.y + FlxG.camera.height * 0.5;
+
+    carryStageId = ps.currentStageId;
+    // SONG_END se despacha antes del shift() de la playlist, así que [0] es la siguiente canción.
+    carryNextSongId = PlayStatePlaylist.playlistSongIds[0];
+  }
+
+  // ------------------------------------------------------------------
+  // 2) Al cargar la siguiente canción: aplicar vida y cámara (solo si el stage es el mismo)
+  //    SONG_LOADED ocurre después de initStage/initCharacters y justo antes del resetCamera() de create().
+  // ------------------------------------------------------------------
+  override public function onSongLoaded(event:SongLoadScriptEvent):Void
+  {
+    super.onSongLoaded(event);
+
+    var ps:PlayState = PlayState.instance;
+    var hadCarry:Bool = hasCarry;
+
+    // El carry se consume siempre, se aplique o no.
+    clearCarry();
+
+    if (!hadCarry || ps == null) return;
+    if (!PlayStatePlaylist.isStoryMode) return;
+    if (ps.currentStage == null) return;
+    if (ps.currentSong.id != carryNextSongId) return;
+    if (ps.currentStageId != carryStageId) return;
+
+    // Cámara: arranca donde terminó la canción anterior (el resetCamera() de create() hace el snap).
+    ps.cameraFollowPoint.setPosition(carryCamX, carryCamY);
+
+    // Vida: mantener la anterior.
+    blendFromHealth = carryHealth;
+    ps.health = blendFromHealth;
+    try
+    {
+      // healthLerp es privado; si no se puede escribir, la barra igual alcanza el valor en ~0.3s.
+      ps.healthLerp = blendFromHealth;
+    }
+    catch (e:Dynamic) {}
+
+    blendPending = true;
+  }
+
+  // ------------------------------------------------------------------
+  // 3) El countdown arranca de verdad (primer paso "3"): empezar la transición.
+  //    Se usa onCountdownStep y no onCountdownStart porque algunos song scripts cancelan
+  //    COUNTDOWN_START (cutscenes) DESPUÉS de los módulos; un STEP solo ocurre si el countdown corre.
+  // ------------------------------------------------------------------
+  override public function onCountdownStep(event:CountdownScriptEvent):Void
+  {
+    super.onCountdownStep(event);
+
+    if (!blendPending) return;
+
+    blendPending = false;
+    blendActive = true;
+    blendStartPos = Conductor.instance.songPosition;
+  }
+
+  // ------------------------------------------------------------------
+  // 4) Transición. Se maneja con Conductor.songPosition para que respete pausa y BPM.
+  // ------------------------------------------------------------------
+  override public function onUpdate(event:UpdateScriptEvent):Void
+  {
+    super.onUpdate(event);
+
+    if (!blendActive) return;
+
+    var ps:PlayState = PlayState.instance;
+    if (ps == null)
+    {
+      blendActive = false;
+      return;
+    }
+
+    var duration:Float = Conductor.instance.beatLengthMs * BLEND_BEATS;
+    var t:Float = (Conductor.instance.songPosition - blendStartPos) / duration;
+
+    if (t >= 1.0)
+    {
+      finishBlend();
+      return;
+    }
+    if (t < 0.0) t = 0.0;
+
+    // sineInOut
+    var e:Float = -(Math.cos(Math.PI * t) - 1.0) * 0.5;
+
+    ps.health = blendFromHealth + (Constants.HEALTH_STARTING - blendFromHealth) * e;
+  }
+
+  function finishBlend():Void
+  {
+    blendActive = false;
+
+    var ps:PlayState = PlayState.instance;
+    if (ps == null) return;
+
+    ps.health = Constants.HEALTH_STARTING;
+  }
+
+  // Por si la canción arranca antes de que termine el blend (BLEND_BEATS > 3).
+  override public function onCountdownEnd(event:CountdownScriptEvent):Void
+  {
+    super.onCountdownEnd(event);
+    if (blendActive) finishBlend();
+  }
+
+  // Reset / muerte: el reinicio normal manda, se cancela cualquier transición.
+  override public function onSongRetry(event:SongRetryEvent):Void
+  {
+    super.onSongRetry(event);
+    blendPending = false;
+    blendActive = false;
+  }
+}
+
+class SoloTimeNoteStylePrecache extends Module
+{
+	function new()
+	{
+		super('SoloTimeNoteStylePrecache');
+	}
+
+	static var ALLOWED_SONGS:Array<String> = [
+		'bopeebo-animania',
+		'cocoa-animania',
+		'dadbattle-animania',
+		'eggnog-animania',
+		'fresh-animania',
+	];
+
+	function songAllowed():Bool
+	{
+		var playState:PlayState = PlayState.instance;
+		if (playState == null || playState.currentSong == null) return false;
+		return ALLOWED_SONGS.indexOf(playState.currentSong.id) != -1;
+	}
+
+	override function onCountdownStart(event)
+	{
+		if (!songAllowed()) return;
+		super.onCountdownStart(event);
+
+		FunkinMemory.cacheTexture(Paths.image("ui/times/solo_time"));
+		FunkinMemory.cacheTexture(Paths.image("ui/times/solo_time-xmas"));
+		FunkinMemory.cacheSound(Paths.sound("gameplay/solo_time/solotime" , "shared"));
+		FunkinMemory.cacheSound(Paths.sound("gameplay/solo_time/solotime-xmas", "shared"));
+		FunkinMemory.cacheNoteStyle(NoteStyleRegistry.instance.fetchEntry('solotime'));
+	}
 }

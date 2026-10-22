@@ -60,6 +60,7 @@
     },
     "noteSplash": {
       "assetPath": "shared:ui/notes/amtake_base/noteSplashes",
+      "alpha": 0.7,
       "data": {
         "enabled": true,
         "leftSplashes": [

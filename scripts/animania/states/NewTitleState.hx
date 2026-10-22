@@ -1,0 +1,1182 @@
+import StringTools;
+import flixel.FlxG;
+import flixel.FlxSprite;
+import flixel.group.FlxGroup;
+import flixel.text.FlxText;
+import flixel.addons.transition.FlxTransitionableState;
+import flixel.tweens.FlxEase;
+import flixel.tweens.FlxTween;
+import flixel.util.FlxColor;
+import flixel.util.FlxSpriteUtil;
+import flixel.util.FlxTimer;
+import funkin.Conductor;
+import funkin.audio.FunkinSound;
+import funkin.graphics.FunkinSprite;
+import funkin.input.Cursor;
+import funkin.modding.module.ModuleHandler;
+import funkin.ui.MusicBeatState;
+import funkin.ui.mainmenu.MainMenuState;
+import funkin.util.MathUtil;
+import funkin.util.SwipeUtil;
+import funkin.util.TouchUtil;
+import funkin.util.WindowUtil;
+
+/**
+ * Title custom (WIP) - Capa 1: intro con textos + gradiente + logo.
+ *
+ *  Capas (de atras hacia adelante):
+ *   1. Fondo negro
+ *   2. void_gradient: empieza fuera de pantalla (abajo) y sube suavemente, sincronizado con los beats de la
+ *      musica, hasta quedar en GRADIENT_FINAL_Y (la posicion de tu captura). Termina justo cuando acaba la intro.
+ *   3. Textos de la intro (fuente Blueprint.ttf). Cuando se agrega una linea debajo, las que ya estaban suben
+ *      suavemente para darle lugar (el bloque siempre queda centrado).
+ *   4. Personajes de los costados (BF a la izquierda, GF a la derecha; atlas fallguys). Detras del logo. Aparecen con el logo.
+ *   5. Logo (atlas de Animate LOGO_OBJECT). Aparece SOLO al terminar la intro o al saltarla.
+ *      Escala de diseno LOGO_SCALE (medida en tu captura); LOGO_FIT lo limita para que nunca se salga de pantalla.
+ *   6. PRESS ENTER (atlas PRESS_ENTER). Aparece con el logo. ENTER / ACCEPT / tap -> logica del TitleState vanilla:
+ *      animacion 'press', flash blanco, confirmMenu y a los 2 s pasa a NEXT_STATE (NewMainMenuState). Al presionar, logo + BF/GF +
+ *      press enter suben suavemente fuera de pantalla (EXIT_*) mientras la camara hace zoom y fade a negro (ENTER_*).
+ *      Bop por beat: la camara hace un golpe de zoom en cada beat de la musica (BOP_*).
+ *   6b. Particulas: circulos que suben (efecto de caida de BF y GF). Detras de los personajes, encima del gradiente.
+ *   7. Props (props.png/.xml): cada PROP_INTERVAL segundos aparece uno al azar que atraviesa la pantalla con un zIndex
+ *      al azar entre PROP_Z_MIN (detras de los personajes) y PROP_Z_MAX (delante de ellos). Siempre detras del logo.
+ *
+ *  ORDEN DE CAPAS: todo se ordena por zIndex (ver constantes *_Z) con refresh() de MusicBeatState (sort por zIndex).
+ *
+ *  Musica: la intro suena con INTRO_MUSIC ('animaniaINTRO') y se dirige por sus beats (igual que el TitleState original), ver INTRO_STEPS.
+ *  Al terminar la intro (INTRO_END_BEAT) o saltarla, se cambia a LOOP_MUSIC ('freakyMenu' = animaniaLOOP reemplazado en music/freakyMenu/), que queda en loop.
+ *  IMPORTANTE: para que los beats/BPM sean los correctos cada tema necesita su metadata en music/<nombre>/<nombre>-metadata.json.
+ *  Saltar la intro: ENTER / ACCEPT (PC) o tap (movil). Al volver a este state en la misma sesion la intro no se repite
+ *  (INTRO_ONLY_ONCE).
+ *
+ * ASSETS (en  images/menus/title/ , o cambiar TITLE_DIR):
+ *   void_gradient.png
+ *   fallguys.png / fallguys.xml  (personajes de los costados)
+ *   LOGO_OBJECT/  (Animation.json, spritemap1.json, spritemap1.png)
+ *   PRESS_ENTER/  (Animation.json, spritemap1.json, spritemap1.png)
+ *   props.png / props.xml
+ * FUENTE: fonts/Blueprint.ttf en tu mod (se resuelve con Paths.font). Si no existe se usa VCR OSD Mono.
+ *
+ * Abrir desde otro state con:
+ *   FlxG.switchState(function() { return ScriptedMusicBeatState.scriptInit('NewTitleState'); });
+ */
+class NewTitleState extends MusicBeatState
+{
+  // ---------------------------------------------------------------------------
+  // CONSTANTES AJUSTABLES (coordenadas en 1280x720)
+  // ---------------------------------------------------------------------------
+  var TITLE_DIR:String = 'menus/title/';
+
+  // ---- Musica ----
+  var INTRO_MUSIC:String = 'animaniaINTRO';   // suena al empezar la intro
+  var LOOP_MUSIC:String = 'freakyMenu';       // reemplaza a la intro cuando termina o se salta (en loop). 'freakyMenu' = el mod lo reemplazo por animaniaLOOP, y los menus piden esa misma key, asi no se reinicia
+
+  // ---- Intro ----
+  var INTRO_START_DELAY:Float = 1.0;   // segundos de pantalla negra antes de empezar (como vanilla)
+  var INTRO_END_BEAT:Int = 12;         // en este beat termina la intro (aparece el logo)
+  var SESSION_MODULE:String = 'TitleSessionModule'; // Module que recuerda que la intro ya se vio (ver isIntroSeen)
+  var INTRO_ONLY_ONCE:Bool = true;     // true = al volver al title en la misma sesion no se repite la intro
+  var FLASH_DURATION:Float = 1.0;      // flash blanco al aparecer el logo
+
+  /**
+   * Guion de la intro. Cada paso: {beat, type, ...}
+   *   type 'set'   -> borra lo que haya y muestra las lineas de `text` (array) a la vez, centradas.
+   *   type 'add'   -> agrega UNA linea (`text`, string) debajo; las anteriores suben suavemente.
+   *   type 'clear' -> borra todo el texto.
+   * Tokens: '{wacky1}' y '{wacky2}' se reemplazan por una frase al azar de data/introText.txt (como vanilla).
+   * El beat 0 es el inicio de la musica.
+   */
+  var INTRO_STEPS:Array<Dynamic> = [
+    {beat: 1, type: 'set', text: ['Animania Team']},
+    {beat: 3, type: 'add', text: 'presents'},
+    {beat: 4, type: 'clear'},
+    {beat: 5, type: 'set', text: ['{wacky1}']},
+    {beat: 7, type: 'add', text: '{wacky2}'},
+    {beat: 8, type: 'clear'},
+    {beat: 9, type: 'set', text: ['Friday']},
+    {beat: 10, type: 'add', text: 'Night'},
+    {beat: 11, type: 'add', text: 'Funkin'}
+  ];
+
+  // ---- Textos de la intro ----
+  var BLUEPRINT_FONT:String = 'Blueprint.ttf';   // fonts/Blueprint.ttf
+  var FONT_FALLBACK:String = 'VCR OSD Mono';
+  var TEXT_SIZE:Int = 60;
+  var TEXT_COLOR:Int = 0xFFFFFFFF;
+  var TEXT_LINE_SPACING:Float = 78.0;     // distancia entre lineas (px)
+  var TEXT_CENTER_Y:Float = 330.0;        // centro vertical del bloque de texto
+  var TEXT_SLIDE_DURATION:Float = 0.45;   // segundos que tardan las lineas en subir al llegar una nueva
+  var TEXT_FADE_IN:Float = 0.18;          // segundos del fade-in de cada linea nueva
+
+  // ---- Gradiente ----
+  var GRADIENT_ASSET:String = 'menus/title/void_gradient';
+  var GRADIENT_FINAL_Y:Float = 470.0;     // Y de su borde de arriba al terminar (medida sobre tu captura)
+  var GRADIENT_START_BEAT:Float = 1.0;    // beat en el que empieza a subir (el primer texto)
+  // Termina de subir en INTRO_END_BEAT. Curva: sineInOut (suave al empezar y al llegar).
+
+  // ---- Logo (atlas de Animate) ----
+  // OJO: el contenido del atlas (logo + TV + consola + CD) es MUCHO mas grande que el escenario de Animate (1600x720):
+  // mide ~2208x1620 px. Por eso se escala segun el tamano real del contenido (caja medida en coordenadas de Animate).
+  var LOGO_ATLAS:String = 'menus/title/LOGO_OBJECT';
+  var LOGO_CONTENT_X:Float = -32.0;       // caja del contenido (sin los efectos de brillo)
+  var LOGO_CONTENT_Y:Float = 3.0;
+  var LOGO_CONTENT_W:Float = 2208.0;
+  var LOGO_CONTENT_H:Float = 1620.0;
+  var LOGO_SCALE:Float = 0.285;           // escala de diseno (medida sobre tu captura). Es la que se usa en pantalla normal
+  var LOGO_FIT:Float = 0.92;              // tope de seguridad: el contenido nunca ocupa mas de esta fraccion de la pantalla
+  var LOGO_OFFSET_X:Float = 0.0;          // ajuste fino (px, en coordenadas de juego)
+  var LOGO_OFFSET_Y:Float = 0.0;
+  var LOGO_SCALE_MULT:Float = 1.0;        // multiplicador sobre el ajuste automatico (0.8 = 20% mas chico, 1.2 = 20% mas grande)
+  var LOGO_CENTER_Y:Float = 0.367;        // altura del centro del logo en pantalla: 0 = arriba, 0.5 = centro, 1 = abajo
+  var LOGO_FPS:Float = 24.0;
+
+  // ---- Press Enter (atlas de Animate PRESS_ENTER; linea de tiempo principal: frames 0-2 = idle, 3-33 = confirmar) ----
+  var PRESS_ATLAS:String = 'menus/title/PRESS_ENTER';
+  var PRESS_CONTENT_X:Float = 8.0;        // caja del contenido en el frame idle (coordenadas de Animate)
+  var PRESS_CONTENT_Y:Float = 11.0;
+  var PRESS_CONTENT_W:Float = 819.0;
+  var PRESS_CONTENT_H:Float = 139.0;
+  var PRESS_SCALE:Float = 0.885;          // escala de diseno (medida sobre tu captura)
+  var PRESS_FIT:Float = 0.92;             // tope: el ancho nunca ocupa mas de esta fraccion de la pantalla
+  var PRESS_OFFSET_X:Float = -18.0;       // respecto al centro horizontal de la pantalla
+  var PRESS_CENTER_Y:Float = 0.78;        // altura del centro en pantalla (0 = arriba, 1 = abajo)
+  var PRESS_IDLE_FPS:Float = 12.0;        // velocidad del temblor idle (3 frames). El original esta a 24
+  var PRESS_CONFIRM_FPS:Float = 24.0;
+  var PRESS_IDLE_LAST:Int = 2;            // idle = frames 0..PRESS_IDLE_LAST
+  var PRESS_CONFIRM_FIRST:Int = 3;        // confirmar = frames 3..PRESS_CONFIRM_LAST
+  var PRESS_CONFIRM_LAST:Int = 33;
+
+  // ---- Al presionar ENTER ----
+  var ENTER_FLASH_DURATION:Float = 1.0;   // flash blanco (vanilla: 1 s)
+  var ENTER_TRANSITION_TIME:Float = 2.0;  // segundos hasta pasar al MainMenuState (vanilla: 2 s)
+  var EXIT_DELAY:Float = 0.2;             // espera antes de que empiecen a subir (se ve el estallido de letras)
+  var EXIT_DURATION:Float = 1.3;          // segundos que tardan en salir por arriba
+  var EXIT_EXTRA:Float = 200.0;           // px extra por encima del alto de pantalla para que salgan completos
+  var ENTER_ZOOM_TARGET:Float = 1.35;     // zoom de camara al que llega al presionar (multiplicador del zoom actual)
+  var ENTER_FADE_DELAY:Float = 0.5;       // segundos antes de que empiece el fade a negro (termina justo al cambiar de state)
+  var NEXT_STATE:String = 'NewMainMenuState'; // state scripted al que va. Si no se encuentra va al MainMenuState de vanilla
+
+  // ---- Bop por beat (lo hace la camara: zoom que golpea y vuelve) ----
+  var BOP_EVERY:Int = 1;                  // cada cuantos beats (1 = todos, 2 = uno si uno no)
+  var BOP_DURATION:Float = 0.35;          // segundos que tarda el zoom en volver a la normalidad
+  var BOP_CAM_AMOUNT:Float = 0.03;        // 0.03 = la camara sube un 3% de zoom en el golpe (0 = sin bop)
+
+  // ---- Personajes de los costados (fallguys.png/.xml: 'bf fall' y 'gf fall', 3 poses cada uno) ----
+  var CHAR_ATLAS:String = 'menus/title/fallguys';
+  var CHAR_SCALE:Float = 0.9;
+  var CHAR_FPS:Float = 24.0;               // velocidad del ciclo de las 3 poses
+  var BF_OFFSET_X:Float = -375.0;         // centro del sprite respecto al centro horizontal de la pantalla (medido en tu captura)
+  var BF_CENTER_Y:Float = 297.0;          // centro vertical del sprite (px, en 720 de alto)
+  var GF_OFFSET_X:Float = 359.0;
+  var GF_CENTER_Y:Float = 274.0;
+  var CHAR_BOB_AMOUNT:Float = 8.0;        // px que suben/bajan flotando (0 = quietos)
+  var CHAR_BOB_PERIOD:Float = 2.4;        // segundos por ciclo de flotado
+  var CHAR_SWAY_DEG:Float = 3.0;          // grados de balanceo (0 = sin balanceo)
+
+  // ---- Capas (zIndex). Menor = mas atras ----
+  var BG_Z:Int = 0;
+  var GRADIENT_Z:Int = 10;
+  var PARTICLE_Z_MIN:Int = 100;           // las particulas quedan entre el gradiente y el texto/personajes
+  var PARTICLE_Z_MAX:Int = 299;
+  var TEXT_Z:Int = 350;
+  var CHAR_Z:Int = 500;                   // BF y GF
+  var LOGO_Z:Int = 700;
+  var PRESS_Z:Int = 750;                  // delante del logo: las letras del 'press' salen volando por encima
+  var PROP_Z_MIN:Int = 420;               // < CHAR_Z = detras de los personajes
+  var PROP_Z_MAX:Int = 580;               // > CHAR_Z = delante de los personajes (siempre < LOGO_Z)
+
+  // ---- Particulas (circulos que suben) ----
+  var PARTICLE_COUNT:Int = 24;
+  var PARTICLE_RADIUS_MIN:Float = 4.0;
+  var PARTICLE_RADIUS_MAX:Float = 14.0;
+  var PARTICLE_SPEED_MIN:Float = 500.0;    // px/s hacia arriba (las mas grandes van mas rapido)
+  var PARTICLE_SPEED_MAX:Float = 750.0;
+  var PARTICLE_ALPHA_MIN:Float = 0.35;
+  var PARTICLE_ALPHA_MAX:Float = 0.85;
+  var PARTICLE_SWAY_MAX:Float = 14.0;     // px de vaiven horizontal
+  var PARTICLE_FADE_IN:Float = 1.0;       // segundos que tardan en aparecer cuando sale el logo
+  var PARTICLE_COLORS:Array<Int> = [0xFFFFFFFF, 0xFFB7C4C8, 0xFF8FA6AB, 0xFF6FB5B0, 0xFFC9B79C, 0xFFB890A8];
+
+  // ---- Props que caen (props.png / props.xml) ----
+  var PROPS_ATLAS:String = 'menus/title/props';
+  var PROP_INTERVAL:Float = 1.0;          // segundos entre props
+  var PROP_GO_UP:Bool = true;             // true = suben (como las particulas, por la caida de BF/GF); false = bajan
+  var PROP_SPEED_MIN:Float = 390.0;        // px/s
+  var PROP_SPEED_MAX:Float = 550.0;
+  var PROP_SCALE_MIN:Float = 0.95;
+  var PROP_SCALE_MAX:Float = 1.0;
+  var PROP_SPIN_MAX:Float = 70.0;          // grados/s (se elige entre -PROP_SPIN_MAX y PROP_SPIN_MAX)
+  // Prefijos de props.xml. fps = velocidad de la animacion (los de 1 frame se quedan quietos).
+  var PROP_LIST:Array<Dynamic> = [
+    {prefix: 'AM green ring fall', fps: 24},
+    {prefix: 'Japanese noodles', fps: 24},
+    {prefix: 'bell', fps: 24},
+    {prefix: 'disk', fps: 24},
+    {prefix: 'kamina glasses', fps: 1},
+    {prefix: 'leek', fps: 24},
+    {prefix: 'menu mic', fps: 1},
+    {prefix: 'nenes kunai', fps: 1},
+    {prefix: 'pear teto', fps: 1}
+  ];
+
+  // ---------------------------------------------------------------------------
+  // ESTADO
+  // ---------------------------------------------------------------------------
+  static var introDone:Bool = false;      // la intro ya se vio en esta sesion
+
+  var introStarted:Bool = false;
+  var restartLoopOnFinish:Bool = true;    // false = el state se abrio con la intro ya vista: no reiniciar el loop si ya suena
+  var skippedIntro:Bool = false;          // true cuando la intro termino (o se salto) y se ve el logo
+  var lastBeat:Int = 0;
+  var lastScreenW:Int = 0;                // tamano de juego con el que se acomodo todo por ultima vez
+  var lastScreenH:Int = 0;
+
+  var introFont:String = 'VCR OSD Mono';
+  var curWacky:Array<String> = ['Animania', 'Mod'];
+
+  var bg:FunkinSprite = null;
+  var gradient:FlxSprite = null;
+  var textGroup:FlxGroup = null;
+  var introLines:Array<FlxText> = [];
+  var introTargetY:Array<Float> = [];
+  var logo:FunkinSprite = null;
+  var bf:FunkinSprite = null;
+  var gf:FunkinSprite = null;
+  var bfBaseX:Float = 0.0;
+  var bfBaseY:Float = 0.0;
+  var gfBaseX:Float = 0.0;
+  var gfBaseY:Float = 0.0;
+  var charTime:Float = 0.0;
+
+  var press:FunkinSprite = null;
+  var logoBaseScale:Float = 0.0;
+  var bopT:Float = 0.0;                   // 1 al golpear el beat, baja a 0
+  var camBaseZoom:Float = 1.0;            // zoom normal de la camara (el bop sube desde aca)
+  var pressBaseY:Float = 0.0;
+  var exitY:Float = 0.0;                  // desplazamiento vertical de la salida (0 -> -(alto + EXIT_EXTRA))
+  var transitioning:Bool = false;         // ya se presiono ENTER (igual que vanilla)
+
+  var particles:Array<FlxSprite> = [];
+  var pSpeed:Array<Float> = [];
+  var pBaseX:Array<Float> = [];
+  var pSway:Array<Float> = [];
+  var pFreq:Array<Float> = [];
+  var pPhase:Array<Float> = [];
+  var pAlpha:Array<Float> = [];
+  var particleTime:Float = 0.0;
+  var particleFade:Float = 0.0;
+
+  var props:Array<FunkinSprite> = [];
+  var propTimer:Float = 0.0;
+  var lastPropIdx:Int = -1;
+
+  function new()
+  {
+    super();
+  }
+
+  override function create():Void
+  {
+    super.create();
+
+    persistentUpdate = true;
+    camBaseZoom = FlxG.camera.zoom;
+
+    WindowUtil.setWindowTitle("Animania: Loading Screen (WIP)");
+    // WindowUtil.setWindowTitle("Friday Night Funkin': Animania!");
+
+    Cursor.hide();
+
+    loadWacky();
+    resolveFont();
+
+    buildBackground();
+    buildGradient();
+
+    textGroup = new FlxGroup();
+    add(textGroup);
+
+    buildCharacters(); // detras del logo
+    buildLogo();
+    buildPressEnter();
+    buildParticles();
+    applyLayers();
+
+    lastScreenW = FlxG.width;
+    lastScreenH = FlxG.height;
+
+    if (isIntroSeen() && INTRO_ONLY_ONCE)
+    {
+      restartLoopOnFinish = false;
+      introStarted = true;
+      finishIntro();
+    }
+    else
+    {
+      new FlxTimer().start(INTRO_START_DELAY, function(_) {
+        startIntro();
+      });
+    }
+  }
+
+  function setMarkText(text:String, size:Int, y:Float):Void
+  {
+    rightWatermarkText.text = text;
+    rightWatermarkText.size = size;
+    rightWatermarkText.y = y;
+  }
+
+  // ---------------------------------------------------------------------------
+  // INTRO VISTA (persiste entre instancias del state)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Las variables static de una clase scripted no sobreviven de forma confiable a que el state se cree otra vez (al volver desde
+   * un menu), por eso el flag tambien se guarda en un Module (TitleSessionModule.hxc), que si vive toda la sesion.
+   * Si el modulo no existe se usa solo la variable static (comportamiento anterior).
+   */
+  function isIntroSeen():Bool
+  {
+    if (introDone) return true;
+
+    try
+    {
+      var m = ModuleHandler.getModule(SESSION_MODULE);
+      if (m != null && m.introSeen == true) return true;
+    }
+    catch (e:Dynamic)
+    {
+      trace('[NewTitleState] No se pudo leer ' + SESSION_MODULE + ': ' + e);
+    }
+
+    return false;
+  }
+
+  function markIntroSeen():Void
+  {
+    try
+    {
+      var m = ModuleHandler.getModule(SESSION_MODULE);
+      if (m != null) m.introSeen = true;
+      else trace('[NewTitleState] Falta ' + SESSION_MODULE + '.hxc: la intro se repetira al volver al title.');
+    }
+    catch (e:Dynamic)
+    {
+      trace('[NewTitleState] No se pudo guardar en ' + SESSION_MODULE + ': ' + e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // CONSTRUCCION
+  // ---------------------------------------------------------------------------
+
+  /** Elige la frase al azar de data/introText.txt ("linea1--linea2"), igual que el TitleState original. */
+  function loadWacky():Void
+  {
+    try
+    {
+      var fullText:String = Assets.getText(Paths.txt('introText'));
+      var lines:Array<String> = fullText.split('\n').filter(function(s:String) {
+        return StringTools.trim(s) != '';
+      });
+
+      if (lines.length > 0)
+      {
+        var picked:String = lines[FlxG.random.int(0, lines.length - 1)];
+        var parts:Array<String> = picked.split('--');
+        curWacky[0] = StringTools.trim(parts[0]);
+        if (parts.length > 1) curWacky[1] = StringTools.trim(parts[1]);
+      }
+    }
+    catch (e:Dynamic)
+    {
+      trace('[NewTitleState] No se pudo leer introText.txt: ' + e);
+    }
+  }
+
+  /** Blueprint.ttf si existe en el mod (fonts/Blueprint.ttf); si no, la fuente de respaldo. */
+  function resolveFont():Void
+  {
+    introFont = FONT_FALLBACK;
+
+    try
+    {
+      var fontPath:String = Paths.font(BLUEPRINT_FONT);
+      if (Assets.exists(fontPath))
+      {
+        introFont = fontPath;
+      }
+      else
+      {
+        trace('[NewTitleState] No se encontro ' + fontPath + ' (uso ' + FONT_FALLBACK + ').');
+      }
+    }
+    catch (e:Dynamic)
+    {
+      trace('[NewTitleState] No se pudo cargar la fuente ' + BLUEPRINT_FONT + ': ' + e);
+    }
+  }
+
+  function buildBackground():Void
+  {
+    bg = new FunkinSprite(-1).makeSolidColor(FlxG.width + 2, FlxG.height, FlxColor.BLACK);
+    bg.screenCenter();
+    add(bg);
+  }
+
+  /**
+   * void_gradient.png mide 1x625: se estira al ancho de la pantalla (cubre cualquier ancho) y se deja a 1:1 en vertical.
+   * Empieza justo debajo de la pantalla; updateGradient() lo sube.
+   */
+  function buildGradient():Void
+  {
+    gradient = new FlxSprite();
+    gradient.loadGraphic(Paths.image(GRADIENT_ASSET));
+    gradient.antialiasing = true;
+    gradient.scale.set(FlxG.width + 2, 1);
+    gradient.updateHitbox();
+    gradient.x = -1;
+    gradient.y = FlxG.height;
+    add(gradient);
+  }
+
+  /**
+   * Logo: atlas de Animate. Con applyStageMatrix el sprite se dibuja como en Animate: (0,0) = esquina del escenario
+   * (1600x720), pero el contenido real es bastante mas grande que el escenario, asi que layoutLogo() lo escala y lo
+   * centra segun LOGO_CONTENT_*. No tiene frame labels: se reproduce la linea de tiempo principal por simbolo.
+   */
+  function buildLogo():Void
+  {
+    logo = new FunkinSprite(0, 0);
+    logo.loadTextureAtlas(LOGO_ATLAS, null, {swfMode: true, cacheOnLoad: true, applyStageMatrix: true});
+    logo.antialiasing = true;
+    layoutLogo();
+
+    try
+    {
+      logo.anim.addBySymbol('loop', logo.getDefaultSymbol(), LOGO_FPS, true);
+    }
+    catch (e:Dynamic)
+    {
+      trace('[NewTitleState] No se pudo crear la animacion del logo: ' + e);
+    }
+
+    logo.visible = false; // solo se ve cuando termina la intro
+    add(logo);
+  }
+
+  /** BF y GF de los costados. Cada uno es un sprite Sparrow del mismo atlas que cicla sus 3 poses ('bf fall0000'...). */
+  function buildCharacters():Void
+  {
+    bf = makeCharacter('bf fall');
+    gf = makeCharacter('gf fall');
+
+    layoutCharacters();
+
+    add(bf);
+    add(gf);
+  }
+
+  function makeCharacter(prefix:String):FunkinSprite
+  {
+    var c:FunkinSprite = new FunkinSprite(0, 0);
+
+    try
+    {
+      c.loadSparrow(CHAR_ATLAS);
+      c.animation.addByPrefix('fall', prefix, CHAR_FPS, true);
+      c.animation.play('fall', true); // antes de updateHitbox: asi toma el tamano de SU frame (bf y gf no miden igual)
+    }
+    catch (e:Dynamic)
+    {
+      trace('[NewTitleState] No se pudo cargar ' + CHAR_ATLAS + ' (' + prefix + '): ' + e);
+    }
+
+    c.antialiasing = true;
+    c.scale.set(CHAR_SCALE, CHAR_SCALE);
+    c.updateHitbox();
+    c.visible = false; // aparecen junto con el logo
+    return c;
+  }
+
+  /** Coloca a BF y GF respecto al CENTRO de la pantalla (en pantallas anchas se mantienen junto al logo). */
+  function layoutCharacters():Void
+  {
+    if (bf == null || gf == null) return;
+
+    bf.scale.set(CHAR_SCALE, CHAR_SCALE);
+    bf.updateHitbox();
+    gf.scale.set(CHAR_SCALE, CHAR_SCALE);
+    gf.updateHitbox();
+
+    bfBaseX = (FlxG.width / 2) + BF_OFFSET_X - (bf.width / 2);
+    bfBaseY = BF_CENTER_Y - (bf.height / 2);
+    gfBaseX = (FlxG.width / 2) + GF_OFFSET_X - (gf.width / 2);
+    gfBaseY = GF_CENTER_Y - (gf.height / 2);
+
+    bf.x = bfBaseX;
+    bf.y = bfBaseY;
+    gf.x = gfBaseX;
+    gf.y = gfBaseY;
+  }
+
+  /** Flotado + balanceo suave (BF y GF en contrafase). */
+  function updateCharacters(elapsed:Float):Void
+  {
+    if (bf == null || gf == null || !bf.visible) return;
+
+    charTime += elapsed;
+    var phase:Float = (charTime / CHAR_BOB_PERIOD) * 2 * Math.PI;
+
+    bf.x = bfBaseX;
+    bf.y = bfBaseY + Math.sin(phase) * CHAR_BOB_AMOUNT + exitY;
+    bf.angle = Math.sin(phase + 0.6) * CHAR_SWAY_DEG;
+
+    gf.x = gfBaseX;
+    gf.y = gfBaseY + Math.sin(phase + Math.PI) * CHAR_BOB_AMOUNT + exitY;
+    gf.angle = Math.sin(phase + Math.PI + 0.6) * CHAR_SWAY_DEG;
+  }
+
+  /**
+   * Ajusta el logo al tamano de juego actual (FlxG.width x FlxG.height): usa LOGO_SCALE (limitado por LOGO_FIT para que
+   * la caja del contenido LOGO_CONTENT_* siempre entre en pantalla) y lo centra. origin (0,0) = la escala parte de la esquina
+   * del escenario de Animate (applyStageMatrix), asi que la posicion se calcula desde el centro del contenido.
+   */
+  function layoutLogo():Void
+  {
+    if (logo == null) return;
+
+    var fit:Float = Math.min(FlxG.width * LOGO_FIT / LOGO_CONTENT_W, FlxG.height * LOGO_FIT / LOGO_CONTENT_H);
+    var sc:Float = Math.min(LOGO_SCALE, fit) * LOGO_SCALE_MULT;
+
+    logoBaseScale = sc;
+    logo.origin.set(0, 0);
+
+    applyLogoTransform();
+  }
+
+  /** Escala + posicion del logo, centrado en el centro de su caja de contenido (origin 0,0 = esquina del escenario de Animate). */
+  function applyLogoTransform():Void
+  {
+    if (logo == null) return;
+
+    var m:Float = logoBaseScale;
+    var cx:Float = LOGO_CONTENT_X + LOGO_CONTENT_W / 2;
+    var cy:Float = LOGO_CONTENT_Y + LOGO_CONTENT_H / 2;
+
+    logo.scale.set(m, m);
+    logo.x = (FlxG.width / 2) - (cx * m) + LOGO_OFFSET_X;
+    logo.y = (FlxG.height * LOGO_CENTER_Y) - (cy * m) + LOGO_OFFSET_Y + exitY;
+  }
+
+  /** Baja el bop (1 -> 0) y lo aplica al zoom de la camara: camBaseZoom * (1 + BOP_CAM_AMOUNT * curva). */
+  function updateBop(elapsed:Float):Void
+  {
+    bopT = Math.max(0.0, bopT - elapsed / BOP_DURATION);
+    FlxG.camera.zoom = camBaseZoom * (1.0 + BOP_CAM_AMOUNT * bopT * bopT);
+  }
+
+  /** Reacomoda fondo, gradiente, textos y logo cuando cambia el tamano de juego (ventana, pantalla ancha, etc.). */
+  function onScreenResized():Void
+  {
+    lastScreenW = FlxG.width;
+    lastScreenH = FlxG.height;
+
+    if (bg != null)
+    {
+      bg.scale.set((FlxG.width + 2) / bg.frameWidth, FlxG.height / bg.frameHeight);
+      bg.updateHitbox();
+      bg.x = -1;
+      bg.y = 0;
+    }
+
+    if (gradient != null)
+    {
+      gradient.scale.set(FlxG.width + 2, 1);
+      gradient.updateHitbox();
+      gradient.x = -1;
+      if (skippedIntro) gradient.y = GRADIENT_FINAL_Y;
+      else if (!introStarted) gradient.y = FlxG.height;
+      // durante la intro, updateGradient() lo recoloca solo en el siguiente frame
+    }
+
+    for (t in introLines)
+    {
+      t.fieldWidth = FlxG.width;
+    }
+    relayoutIntroText();
+
+    layoutLogo();
+    layoutPress();
+    layoutCharacters();
+  }
+
+  // ---------------------------------------------------------------------------
+  // PRESS ENTER
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Atlas de Animate PRESS_ENTER. Se carga igual que el logo (applyStageMatrix + origin 0,0). No tiene frame labels:
+   * 'idle' = frames 0..2 de la linea de tiempo principal (en loop), 'press' = frames 3..33 (una sola vez).
+   */
+  function buildPressEnter():Void
+  {
+    press = new FunkinSprite(0, 0);
+    press.loadTextureAtlas(PRESS_ATLAS, null, {swfMode: true, cacheOnLoad: true, applyStageMatrix: true});
+    press.antialiasing = true;
+    layoutPress();
+
+    try
+    {
+      var sym = press.getDefaultSymbol();
+
+      var idleFrames = [];
+      var i = 0;
+      while (i <= PRESS_IDLE_LAST)
+      {
+        idleFrames[idleFrames.length] = i;
+        i += 1;
+      }
+
+      var confirmFrames = [];
+      i = PRESS_CONFIRM_FIRST;
+      while (i <= PRESS_CONFIRM_LAST)
+      {
+        confirmFrames[confirmFrames.length] = i;
+        i += 1;
+      }
+
+      press.anim.addBySymbolIndices('idle', sym, idleFrames, PRESS_IDLE_FPS, true);
+      press.anim.addBySymbolIndices('press', sym, confirmFrames, PRESS_CONFIRM_FPS, false);
+    }
+    catch (e:Dynamic)
+    {
+      trace('[NewTitleState] No se pudieron crear las animaciones de PRESS_ENTER: ' + e);
+    }
+
+    press.visible = false; // aparece junto con el logo
+    add(press);
+  }
+
+  /** Igual que layoutLogo(): escala segun la caja del contenido y lo centra en (centro de pantalla + PRESS_OFFSET_X, PRESS_CENTER_Y). */
+  function layoutPress():Void
+  {
+    if (press == null) return;
+
+    var fit:Float = (FlxG.width * PRESS_FIT) / PRESS_CONTENT_W;
+    var sc:Float = Math.min(PRESS_SCALE, fit);
+
+    press.scale.set(sc, sc);
+    press.origin.set(0, 0);
+
+    var cx:Float = PRESS_CONTENT_X + PRESS_CONTENT_W / 2;
+    var cy:Float = PRESS_CONTENT_Y + PRESS_CONTENT_H / 2;
+
+    press.x = (FlxG.width / 2) + PRESS_OFFSET_X - (cx * sc);
+    pressBaseY = (FlxG.height * PRESS_CENTER_Y) - (cy * sc);
+    press.y = pressBaseY + exitY;
+  }
+
+  /**
+   * Logica del TitleState vanilla al presionar ENTER (solo con el logo ya visible y una vez):
+   * animacion 'press', flash blanco, confirmMenu y a los ENTER_TRANSITION_TIME s -> MainMenuState.
+   * Ademas el logo, BF/GF y el press enter suben suavemente fuera de pantalla (exitY).
+   */
+  function onPressEnter():Void
+  {
+    transitioning = true;
+
+    if (FlxG.sound.music != null) FlxG.sound.music.onComplete = null;
+
+    if (press != null && press.animation.getByName('press') != null) press.animation.play('press', true);
+
+    FlxG.camera.flash(FlxColor.WHITE, ENTER_FLASH_DURATION);
+    FunkinSound.playOnce(Paths.sound('confirmMenu'), 0.7);
+
+    bopT = 0.0;
+    FlxG.camera.zoom = camBaseZoom; // el zoom de salida parte del zoom normal, no del golpe del bop
+
+    // Zoom de camara que sube suavemente + fade a negro que termina justo cuando cambia el state.
+    FlxTween.tween(FlxG.camera, {zoom: camBaseZoom * ENTER_ZOOM_TARGET}, ENTER_TRANSITION_TIME, {ease: FlxEase.quadInOut});
+    new FlxTimer().start(ENTER_FADE_DELAY, function(_) {
+      FlxG.camera.fade(FlxColor.BLACK, Math.max(0.1, ENTER_TRANSITION_TIME - ENTER_FADE_DELAY), false);
+    });
+
+    var dist:Float = FlxG.height + EXIT_EXTRA;
+    FlxTween.num(0.0, -dist, EXIT_DURATION, {ease: FlxEase.cubeInOut, startDelay: EXIT_DELAY}, function(v:Float) {
+      exitY = v;
+      applyExit();
+    });
+
+    new FlxTimer().start(ENTER_TRANSITION_TIME, function(_) {
+      moveToMainMenu();
+    });
+  }
+
+  /** Aplica exitY al logo y al press enter (BF/GF lo suman solos en updateCharacters para seguir flotando mientras suben). */
+  function applyExit():Void
+  {
+    applyLogoTransform();
+    if (press != null) press.y = pressBaseY + exitY;
+  }
+
+  function moveToMainMenu():Void
+  {
+    FlxTransitionableState.skipNextTransIn = false;
+    FlxTransitionableState.skipNextTransOut = false;
+
+    FlxTween.cancelTweensOf(FlxG.camera);
+
+    // NewMainMenuState (scripted). Si no se encuentra, cae al MainMenuState de vanilla para no quedar trabado.
+    var next = null;
+    try
+    {
+      next = new NewMainMenuState();
+    }
+    catch (e:Dynamic)
+    {
+      trace('[NewTitleState] Error al crear ' + NEXT_STATE + ': ' + e);
+    }
+
+    if (next == null)
+    {
+      trace('[NewTitleState] No se encontro ' + NEXT_STATE + ', voy al MainMenuState de vanilla.');
+      next = new MainMenuState();
+    }
+
+    FlxG.switchState(function() {
+      return next;
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // CAPAS, PARTICULAS Y PROPS
+  // ---------------------------------------------------------------------------
+
+  /** Asigna el zIndex de cada capa fija y ordena el state (MusicBeatState.refresh() = sort por zIndex). */
+  function applyLayers():Void
+  {
+    bg.zIndex = BG_Z;
+    gradient.zIndex = GRADIENT_Z;
+    textGroup.zIndex = TEXT_Z;
+    bf.zIndex = CHAR_Z;
+    gf.zIndex = CHAR_Z;
+    logo.zIndex = LOGO_Z;
+    press.zIndex = PRESS_Z;
+
+    refresh();
+  }
+
+  /**
+   * Circulos que suben. Se crean una sola vez (pool fijo) y se reciclan: al salir por arriba reaparecen abajo.
+   * Cada uno dibuja su propio circulo (blanco) y se tine con PARTICLE_COLORS. Quedan ocultos hasta que sale el logo.
+   */
+  function buildParticles():Void
+  {
+    var i = 0;
+    while (i < PARTICLE_COUNT)
+    {
+      var r = FlxG.random.float(PARTICLE_RADIUS_MIN, PARTICLE_RADIUS_MAX);
+      var d = Std.int(Math.ceil(r * 2)) + 2;
+      var t = (r - PARTICLE_RADIUS_MIN) / Math.max(0.001, PARTICLE_RADIUS_MAX - PARTICLE_RADIUS_MIN);
+
+      var p = new FlxSprite();
+      p.makeGraphic(d, d, FlxColor.TRANSPARENT, true);
+      FlxSpriteUtil.drawCircle(p, d / 2, d / 2, r, FlxColor.WHITE);
+      p.color = PARTICLE_COLORS[FlxG.random.int(0, PARTICLE_COLORS.length - 1)];
+      p.antialiasing = true;
+      p.alpha = 0.0;
+      p.visible = false;
+      p.zIndex = FlxG.random.int(PARTICLE_Z_MIN, PARTICLE_Z_MAX);
+
+      pBaseX[i] = FlxG.random.float(0, FlxG.width);
+      p.x = pBaseX[i];
+      p.y = FlxG.random.float(0, FlxG.height); // al inicio repartidas por toda la pantalla
+
+      pSpeed[i] = (PARTICLE_SPEED_MIN + (PARTICLE_SPEED_MAX - PARTICLE_SPEED_MIN) * (0.3 + 0.7 * t)) * FlxG.random.float(0.8, 1.0);
+      pSway[i] = FlxG.random.float(0, PARTICLE_SWAY_MAX);
+      pFreq[i] = FlxG.random.float(0.6, 1.6);
+      pPhase[i] = FlxG.random.float(0, 6.2832);
+      pAlpha[i] = FlxG.random.float(PARTICLE_ALPHA_MIN, PARTICLE_ALPHA_MAX);
+
+      add(p);
+      particles[i] = p;
+
+      i += 1;
+    }
+  }
+
+  function showParticles():Void
+  {
+    particleFade = 0.0;
+
+    var i = 0;
+    while (i < particles.length)
+    {
+      particles[i].visible = true;
+      i += 1;
+    }
+  }
+
+  function updateParticles(elapsed:Float):Void
+  {
+    if (particleFade < 1.0) particleFade = Math.min(1.0, particleFade + elapsed / PARTICLE_FADE_IN);
+    particleTime += elapsed;
+
+    var i = 0;
+    while (i < particles.length)
+    {
+      var p = particles[i];
+
+      p.y -= pSpeed[i] * elapsed;
+
+      if (p.y + p.height < 0)
+      {
+        // salio por arriba: vuelve a entrar por abajo en otra X
+        p.y = FlxG.height + FlxG.random.float(0, 60);
+        pBaseX[i] = FlxG.random.float(0, FlxG.width);
+      }
+
+      p.x = pBaseX[i] + Math.sin(particleTime * pFreq[i] + pPhase[i]) * pSway[i];
+      p.alpha = pAlpha[i] * particleFade;
+
+      i += 1;
+    }
+  }
+
+  /** Crea un prop al azar (distinto al anterior) fuera de pantalla, con zIndex al azar entre PROP_Z_MIN y PROP_Z_MAX. */
+  function spawnProp():Void
+  {
+    var idx = FlxG.random.int(0, PROP_LIST.length - 1);
+    if (idx == lastPropIdx && PROP_LIST.length > 1) idx = (idx + 1) % PROP_LIST.length;
+    lastPropIdx = idx;
+
+    var info = PROP_LIST[idx];
+    var p = new FunkinSprite(0, 0);
+
+    try
+    {
+      p.loadSparrow(PROPS_ATLAS);
+      p.animation.addByPrefix('fall', info.prefix, info.fps, true);
+      p.animation.play('fall', true); // antes de updateHitbox: toma el tamano de SU frame
+    }
+    catch (e:Dynamic)
+    {
+      trace('[NewTitleState] No se pudo crear el prop ' + info.prefix + ': ' + e);
+      p.destroy();
+      return;
+    }
+
+    p.antialiasing = true;
+
+    var sc = FlxG.random.float(PROP_SCALE_MIN, PROP_SCALE_MAX);
+    p.scale.set(sc, sc);
+    p.updateHitbox();
+
+    var m = Math.max(p.width, p.height);
+    var speed = FlxG.random.float(PROP_SPEED_MIN, PROP_SPEED_MAX);
+
+    p.x = FlxG.random.float(-p.width * 0.25, FlxG.width - p.width * 0.75);
+    if (PROP_GO_UP)
+    {
+      p.y = FlxG.height + m * 0.5;
+      p.velocity.y = -speed;
+    }
+    else
+    {
+      p.y = -p.height - m * 0.5;
+      p.velocity.y = speed;
+    }
+
+    p.angle = FlxG.random.float(0, 360);
+    p.angularVelocity = FlxG.random.float(-PROP_SPIN_MAX, PROP_SPIN_MAX);
+    p.zIndex = FlxG.random.int(PROP_Z_MIN, PROP_Z_MAX);
+
+    add(p);
+    props[props.length] = p;
+    refresh(); // reordena por zIndex para que el prop quede en su capa
+  }
+
+  /** Timer de spawn + limpieza de los props que ya salieron de pantalla. */
+  function updateProps(elapsed:Float):Void
+  {
+    propTimer += elapsed;
+    if (propTimer >= PROP_INTERVAL)
+    {
+      propTimer = propTimer % PROP_INTERVAL; // sin rafagas si hubo un lag
+      spawnProp();
+    }
+
+    var i = props.length - 1;
+    while (i >= 0)
+    {
+      var p = props[i];
+      var m = Math.max(p.width, p.height);
+      var gone = PROP_GO_UP ? (p.y < -(p.height + m)) : (p.y > FlxG.height + m);
+
+      if (gone)
+      {
+        props.splice(i, 1);
+        remove(p, true);
+        p.destroy();
+      }
+
+      i -= 1;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // INTRO
+  // ---------------------------------------------------------------------------
+
+  function startIntro():Void
+  {
+    introStarted = true;
+
+    // Siempre desde el principio: la intro y el gradiente van sincronizados con los beats desde el beat 0.
+    FunkinSound.playMusic(INTRO_MUSIC, {
+      startingVolume: 0.0,
+      overrideExisting: true,
+      restartTrack: true,
+      loop: false,
+      persist: true
+    });
+    if (FlxG.sound.music != null) FlxG.sound.music.fadeIn(4.0, 0.0, 1.0);
+
+    lastBeat = 0;
+  }
+
+  override function beatHit():Bool
+  {
+    // super.beatHit() devuelve false si un modulo cancelo el evento.
+    if (!super.beatHit()) return false;
+
+    if (introStarted && !skippedIntro)
+    {
+      // Si el usuario arrastra la ventana se pueden perder beats: se ejecutan todos los pendientes.
+      if (Conductor.instance.currentBeat > lastBeat)
+      {
+        for (i in lastBeat...Conductor.instance.currentBeat)
+        {
+          runIntroBeat(i + 1);
+        }
+      }
+      lastBeat = Conductor.instance.currentBeat;
+    }
+
+    // Bop por beat (solo con el logo visible y antes de presionar ENTER).
+    if (skippedIntro && !transitioning && Conductor.instance.currentBeat % BOP_EVERY == 0) bopT = 1.0;
+
+    return true;
+  }
+
+  /** Ejecuta los pasos del guion que caen en este beat. */
+  function runIntroBeat(beat:Int):Void
+  {
+    if (skippedIntro) return;
+
+    for (step in INTRO_STEPS)
+    {
+      if (step.beat != beat) continue;
+
+      if (step.type == 'clear')
+      {
+        clearIntroText();
+      }
+      else if (step.type == 'set')
+      {
+        setIntroLines(step.text);
+      }
+      else if (step.type == 'add')
+      {
+        addIntroLine(step.text);
+      }
+    }
+
+    if (beat >= INTRO_END_BEAT) finishIntro();
+  }
+
+  /** Reemplaza {wacky1} / {wacky2} por la frase elegida. */
+  function resolveTokens(text:String):String
+  {
+    text = text.split('{wacky1}').join(curWacky[0]);
+    text = text.split('{wacky2}').join(curWacky[1]);
+    return StringTools.trim(text);
+  }
+
+  function makeIntroText(text:String):FlxText
+  {
+    var t:FlxText = new FlxText(0, 0, FlxG.width, resolveTokens(text));
+    t.setFormat(introFont, TEXT_SIZE, TEXT_COLOR, 'center');
+    t.antialiasing = true;
+    t.alpha = 0.0;
+    return t;
+  }
+
+  /** Recalcula la Y objetivo de cada linea: el bloque queda centrado en TEXT_CENTER_Y. */
+  function relayoutIntroText():Void
+  {
+    var count:Int = introLines.length;
+    var top:Float = TEXT_CENTER_Y - ((count - 1) * TEXT_LINE_SPACING) / 2;
+
+    for (i in 0...count)
+    {
+      introTargetY[i] = top + (i * TEXT_LINE_SPACING) - introLines[i].height / 2;
+    }
+  }
+
+  /** Muestra varias lineas a la vez (sin deslizamiento): borra lo anterior. */
+  function setIntroLines(lines:Array<String>):Void
+  {
+    clearIntroText();
+
+    for (text in lines)
+    {
+      var t:FlxText = makeIntroText(text);
+      textGroup.add(t);
+      introLines.push(t);
+      introTargetY.push(0.0);
+    }
+
+    relayoutIntroText();
+    for (i in 0...introLines.length)
+    {
+      introLines[i].y = introTargetY[i];
+    }
+  }
+
+  /**
+   * Agrega una linea debajo: la nueva aparece en su lugar (fade-in) y las que ya estaban
+   * suben suavemente (updateIntroText) para que el bloque siga centrado.
+   */
+  function addIntroLine(text:String):Void
+  {
+    var t:FlxText = makeIntroText(text);
+    textGroup.add(t);
+    introLines.push(t);
+    introTargetY.push(0.0);
+
+    relayoutIntroText();
+    t.y = introTargetY[introLines.length - 1];
+  }
+
+  function clearIntroText():Void
+  {
+    for (t in introLines)
+    {
+      textGroup.remove(t, true);
+      t.destroy();
+    }
+    introLines = [];
+    introTargetY = [];
+  }
+
+  function updateIntroText(elapsed:Float):Void
+  {
+    for (i in 0...introLines.length)
+    {
+      var t:FlxText = introLines[i];
+      t.y = MathUtil.smoothLerpPrecision(t.y, introTargetY[i], elapsed, TEXT_SLIDE_DURATION);
+      if (t.alpha < 1.0) t.alpha = Math.min(1.0, t.alpha + elapsed / TEXT_FADE_IN);
+    }
+  }
+
+  /** El gradiente sube de FlxG.height a GRADIENT_FINAL_Y entre GRADIENT_START_BEAT e INTRO_END_BEAT (por beats, no por tiempo). */
+  function updateGradient():Void
+  {
+    var span:Float = INTRO_END_BEAT - GRADIENT_START_BEAT;
+    var t:Float = (Conductor.instance.currentBeatTime - GRADIENT_START_BEAT) / span;
+    t = Math.min(Math.max(t, 0.0), 1.0);
+
+    var e:Float = FlxEase.sineInOut(t);
+    gradient.y = FlxG.height + (GRADIENT_FINAL_Y - FlxG.height) * e;
+  }
+
+  /** Reemplaza la musica de la intro por LOOP_MUSIC (en loop, a volumen completo). */
+  function playLoopMusic(restart:Bool):Void
+  {
+    FunkinSound.playMusic(LOOP_MUSIC, {
+      startingVolume: 1.0,
+      overrideExisting: true,
+      restartTrack: restart,
+      loop: true,
+      persist: true
+    });
+  }
+
+  /**
+   * Fin de la intro (por beat o saltada): se borran los textos, el gradiente queda en su sitio
+   * y se muestra unicamente el logo.
+   */
+  function finishIntro():Void
+  {
+    if (skippedIntro) return;
+    skippedIntro = true;
+    introDone = true;
+    markIntroSeen();
+
+    clearIntroText();
+    gradient.y = GRADIENT_FINAL_Y;
+
+    logo.visible = true;
+    if (logo.animation.getByName('loop') != null) logo.animation.play('loop', true);
+
+    if (bf != null) bf.visible = true;
+    if (gf != null) gf.visible = true;
+
+    playLoopMusic(restartLoopOnFinish);
+    setMarkText('Animania v0.6.0 V-Slice Port', 24, FlxG.height / 52);
+
+    if (press != null)
+    {
+      press.visible = true;
+      if (press.animation.getByName('idle') != null) press.animation.play('idle', true);
+    }
+
+    showParticles();
+    propTimer = 0.0;
+
+    FlxG.camera.flash(FlxColor.WHITE, FLASH_DURATION);
+  }
+
+  // ---------------------------------------------------------------------------
+  // UPDATE
+  // ---------------------------------------------------------------------------
+
+  override function update(elapsed:Float):Void
+  {
+    Cursor.hide();
+
+    if (FlxG.width != lastScreenW || FlxG.height != lastScreenH) onScreenResized();
+
+    Conductor.instance.update();
+    if (FlxG.sound.music != null) Conductor.instance.update(FlxG.sound.music.time);
+
+    // Saltar la intro: ENTER / ACCEPT (PC) o tap (movil), igual que el TitleState original.
+    var pressed:Bool = FlxG.keys.justPressed.ENTER || controls.ACCEPT_P;
+    if (FlxG.onMobile && TouchUtil.justReleased && !SwipeUtil.justSwipedAny) pressed = true;
+
+    if (pressed && introStarted)
+    {
+      // Un solo camino por frame: si este ENTER saltea la intro no cuenta tambien como "press enter".
+      if (!skippedIntro) finishIntro();
+      else if (!transitioning) onPressEnter();
+    }
+
+    if (introStarted && !skippedIntro)
+    {
+      updateGradient();
+      updateIntroText(elapsed);
+    }
+
+    if (skippedIntro)
+    {
+      if (!transitioning) updateBop(elapsed); // al presionar ENTER el zoom lo maneja el tween de la camara
+      updateCharacters(elapsed);
+      updateParticles(elapsed);
+      updateProps(elapsed);
+    }
+
+    super.update(elapsed);
+  }
+}
