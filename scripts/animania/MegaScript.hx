@@ -1394,7 +1394,7 @@ class DadBattleAnimania extends Song
 
 
 	var useModchart = !Save.instance.modOptions["lowQuality"];
-	var dadYYPos = -100;
+	var dadYYPos = -175;
 	var oppFieldScale = 1.15;
 	var hideOpponentCovers = true;
 	var oppAnchorDX = 0.0;
@@ -1406,6 +1406,7 @@ class DadBattleAnimania extends Song
 	var mlPlr = null;
 	var mlTw = new StringMap();
 	var mlPlaced = false;
+	var mlBaseIntroKilled = false;
 	var mlStage = 0;
 	var mlTriggers = [];
 	var mlInIdle = true;
@@ -1496,6 +1497,44 @@ class DadBattleAnimania extends Song
 		}
 	}
 
+	// Strumline.fadeInArrows() (initStrumlines del juego base) deja un tween de y/alpha en cada flecha
+	// que apunta a la posicion ORIGINAL del juego base (abajo con downscroll). Ese tween arranca en el
+	// countdown, arrastra el strum de vuelta y le pisa el alpha, cortando la intro del modchart.
+	// restoreY: fadeInArrow ya resto 10 a cada flecha; si el tween no arranco todavia (onCreate) se devuelve.
+	function mlKillBaseIntro(s, restoreY)
+	{
+		if (s == null || s.strumlineNotes == null) return;
+
+		var mem = s.strumlineNotes.members;
+		var c = 0;
+		while (c < mem.length)
+		{
+			var arrow = mem[c];
+			if (arrow != null)
+			{
+				FlxTween.cancelTweensOf(arrow);
+				arrow.alpha = 0.0;
+				if (restoreY) arrow.y += 10.0;
+			}
+			c += 1;
+		}
+	}
+
+	// NoteHoldCover.revive() fuerza alpha = 1 en cada hold nuevo; se iguala al alpha del strum del oponente.
+	function mlSyncCovers(s, L)
+	{
+		if (s == null || L == null || s.noteHoldCovers == null) return;
+
+		var cm = s.noteHoldCovers.members;
+		var i = 0;
+		while (i < cm.length)
+		{
+			var cv = cm[i];
+			i += 1;
+			if (cv != null && cv.alive && cv.alpha != L.alpha) cv.alpha = L.alpha;
+		}
+	}
+
 	function mlHidePre(game)
 	{
 		if (game == null || mlPlaced) return;
@@ -1538,6 +1577,12 @@ class DadBattleAnimania extends Song
 		mlPlr.ox = 50;
 		mlPlr.oy = 50;
 
+		if (!mlBaseIntroKilled && game != null && game.opponentStrumline != null && game.playerStrumline != null)
+		{
+			mlKillBaseIntro(game.opponentStrumline, true);
+			mlKillBaseIntro(game.playerStrumline, true);
+			mlBaseIntroKilled = true;
+		}
 		mlHidePre(game);
 
 		if (mlPostFn == null)
@@ -1572,6 +1617,13 @@ class DadBattleAnimania extends Song
 		{
 			mlPlrRecScale = mlPlrRecs[0].scale.x;
 
+			if (!mlBaseIntroKilled)
+			{
+				mlKillBaseIntro(s, false);
+				mlKillBaseIntro(game.playerStrumline, false);
+				mlBaseIntroKilled = true;
+			}
+
 			s.isDownscroll = true;
 			s.strumlineScale.set(oppFieldScale, oppFieldScale);
 
@@ -1583,11 +1635,11 @@ class DadBattleAnimania extends Song
 			while (m < s.members.length)
 			{
 				var mem = s.members[m];
-				if (mem != null && Std.isOfType(mem, FunkinSprite)) mem.visible = false;
+				if (mem != null && mem != s.strumlineNotes && mem != s.noteHoldCovers) mem.visible = false;
 				m += 1;
 			}
 
-			s.showNotesplash = !hideOpponentCovers;
+			s.showNotesplash = false;
 
 			mlOppIncomingFn = function(n) {
 				mlOnIncoming(n, 0);
@@ -1734,6 +1786,7 @@ class DadBattleAnimania extends Song
 		var game = PlayState.instance;
 		if (game == null) return;
 
+		mlSyncCovers(game.opponentStrumline, mlOpp);
 		mlPostLane(game.opponentStrumline, mlOpp);
 		mlPostLane(game.playerStrumline, mlPlr);
 	}
@@ -2780,7 +2833,14 @@ class DadBattleAnimania extends Song
 
 	function onCountdownStart(event)
 	{
-		mlPlace(PlayState.instance);
+		var game = PlayState.instance;
+		mlPlace(game);
+
+		// No se salta en charting mode (startTimestamp) ni si el carry de story mode esta mezclando vida/camara.
+		var carry = ModuleHandler.getModule('storyCarryoverModule');
+		if (game == null || game.isChartingMode || (carry != null && carry.blendPending)) return;
+
+		FlxTimer.wait(0, () -> Countdown.skipCountdown());
 	}
 
 	function onSongRetry(event)
@@ -2944,6 +3004,7 @@ class DadBattleAnimania extends Song
 		mlOppIncomingFn = null;
 		mlPlrIncomingFn = null;
 		mlPlaced = false;
+		mlBaseIntroKilled = false;
 		mlTw = new StringMap();
 		mlOpp = null;
 		mlPlr = null;
@@ -3015,6 +3076,13 @@ class EggnogAnimaniaSong extends Song
 	}
 
 	var playEggnogCountdownSounds:Bool = true;
+
+	// Final cutscene (parents press the button, lights off)
+	var hasPlayedCutscene:Bool = false;
+	var cutsceneBlack = null;
+	var cutsceneParents = null;
+	var cutsceneFrameCb = null;
+	var cutsceneLightsOff:Bool = false;
 
 	var firefliesZoomFactor:Float = 0.35;
 
@@ -3109,6 +3177,8 @@ void main() {
 	override function onCreate(event)
 	{
 		super.onCreate(event);
+
+		resetCutsceneState();
 
 		if (Save.instance.modOptions['shaders'])
 		{
@@ -3238,6 +3308,139 @@ void main() {
 		Countdown.soundSuffix = '-eggnog';
 	}
 
+	override function onSongRetry(event)
+	{
+		super.onSongRetry(event);
+
+		resetCutsceneState();
+	}
+
+	function resetCutsceneState():Void
+	{
+		hasPlayedCutscene = false;
+		cutsceneLightsOff = false;
+		cutsceneBlack = null;
+		cutsceneParents = null;
+		cutsceneFrameCb = null;
+	}
+
+	override function onSongEnd(event)
+	{
+		super.onSongEnd(event);
+
+		var play = PlayState.instance;
+		if (play == null)
+			return;
+
+		// Freeplay: no cutscene.
+		if (!PlayStatePlaylist.isStoryMode)
+			hasPlayedCutscene = true;
+
+		if (!hasPlayedCutscene)
+		{
+			hasPlayedCutscene = true;
+			event.cancel();
+			startEndCutscene();
+		}
+		else
+		{
+			// Make sure the cutscene can play again next time! DO NOT CANCEL THE EVENT!
+			hasPlayedCutscene = false;
+		}
+	}
+
+	function startEndCutscene():Void
+	{
+		var play = PlayState.instance;
+		var stage = play.currentStage;
+		var parents = stage != null ? stage.getDad() : null;
+
+		play.disableKeys = true;
+
+		// No parents / no animation: don't leave the song hanging, just end it.
+		if (parents == null || !parents.hasAnimation("endCutscene"))
+		{
+			FlxTimer.wait(0.1, () -> endCutscene());
+			return;
+		}
+
+		cutsceneParents = parents;
+		cutsceneLightsOff = false;
+
+		cutsceneBlack = new FunkinSprite();
+		cutsceneBlack.makeSolidColor(2000, 2000, 0xFF000000);
+		cutsceneBlack.scrollFactor.set();
+		cutsceneBlack.screenCenter();
+		cutsceneBlack.alpha = 0;
+		cutsceneBlack.zIndex = 999999;
+		stage.add(cutsceneBlack);
+		stage.refresh();
+
+		parents.isDead = true;
+		play.tweenCameraZoom(1.5, 7.5, false, FlxEase.backOut);
+		play.tweenCameraToPosition(-550, -70, 7.25, FlxEase.backOut);
+
+		FlxTimer.wait(1.75, () -> playParentsPress());
+
+		// Safety net: if the lights-off frame is never reported, force it.
+		FlxTimer.wait(3.5, () -> cutsceneLightsOffNow());
+
+		FlxTimer.wait(6.75, () -> endCutscene());
+	}
+
+	function playParentsPress():Void
+	{
+		var parents = cutsceneParents;
+		if (parents == null)
+			return;
+
+		parents.playAnimation("endCutscene", true, true);
+		FunkinSound.playOnce(Paths.sound("gameplay/stages/CityMall/parentsPress"));
+
+		// Lights off on frame 39 of the animation (same as the original eggnog.hx).
+		cutsceneFrameCb = function(name, frameNumber, frameIndex)
+		{
+			if (frameNumber >= 39)
+				cutsceneLightsOffNow();
+		};
+		parents.animation.onFrameChange.add(cutsceneFrameCb);
+	}
+
+	function cutsceneLightsOffNow():Void
+	{
+		if (cutsceneLightsOff)
+			return;
+
+		var play = PlayState.instance;
+		if (play == null || cutsceneBlack == null)
+			return;
+
+		cutsceneLightsOff = true;
+
+		if (cutsceneParents != null && cutsceneFrameCb != null)
+			cutsceneParents.animation.onFrameChange.remove(cutsceneFrameCb);
+		cutsceneFrameCb = null;
+
+		play.camHUD.alpha = 0.001;
+		FunkinSound.playOnce(Paths.sound("gameplay/stages/CityMall/lightsOff"));
+		cutsceneBlack.alpha = 1;
+
+		if (cutsceneParents != null)
+			cutsceneParents.zIndex = 101000100;
+		if (play.currentStage != null)
+			play.currentStage.refresh();
+	}
+
+	function endCutscene():Void
+	{
+		var play = PlayState.instance;
+		if (play == null)
+			return;
+
+		// hasPlayedCutscene is true here, so onSongEnd lets the song finish this time.
+		play.endSong(true);
+	}
+
 	override function onUpdate(event)
 	{
 		super.onUpdate(event);
@@ -3329,6 +3532,72 @@ class WinterHorrorlandAnimaniaSong extends Song
   var playedCutscene:Bool = false;
   var allowEnd:Bool = false;
 
+  // ---------------------------------------------------------------------------
+  // BATTLE MECHANIC (dodge / attack QTE) - ported from battle-mechanic.script
+  // Solo se activa en dificultad "hard", igual que el script original.
+  // ---------------------------------------------------------------------------
+  var MECH_DIFFICULTY:String = "hard";
+  var MECH_FINAL_PRE_WINDOW:Float = 0.65;
+  var MECH_FINAL_POST_WINDOW:Float = 0.5;
+  var MECH_DOT_SPEED:Float = 1.0;
+  var MECH_DOT_OFFSET:Float = 180;
+  var MECH_DOT_Z:Int = 1650;
+  var MECH_STRIPE_Z:Int = 1750;
+  var MECH_ICON_FOCUS_MULT:Float = 1.0;
+  var MECH_ICON_NORMAL_SIZE:Float = 150;
+  var MECH_SUCK_COLOR = 0xFF362B4D;
+  var MECH_SUCK_Z:Int = 803;
+  var MECH_CAM_ZOOM:Float = 1.4;
+  var MECH_CAM_OFFSET_X:Float = 200;
+  var MECH_CAM_OFFSET_Y:Float = 200;
+
+  var mechActive:Bool = false;
+  var mechMode:String = "dodge";
+  var mechTentacleSide:String = "Left";
+
+  var mechIsEventActive:Bool = false;
+  var mechEventBeats:Int = 0;
+  var mechEventStartBeat:Float = 0;
+  var mechCanHitFinal:Bool = false;
+  var mechTargetFinalBeat:Float = 0;
+  var mechSemiBeatHits:Int = -1;
+  var mechHealthSucked:Float = 0;
+
+  var mechSplash = null;
+  var mechCross = null;
+  var mechHint = null;
+  var mechSuckBar = null;
+  var mechCrossTween = null;
+  var mechDots = [];
+  var mechStripes = [];
+  var mechSnowmanAlpha:Float = 1;
+
+  var mechFocusIcon = null;
+  var mechIconReturning = null;
+  var mechIconReturnIsPlayer:Bool = false;
+  var mechIconTween = null;
+  var mechIconRetP:Float = 1;
+  var mechIconRetFromX:Float = 0;
+  var mechIconRetFromY:Float = 0;
+  var mechIconEntry = null;
+  var mechIconWasAuto:Bool = false;
+  var mechIconBopEvery:Int = 4;
+  var mechFocusScale:Float = 1;
+  // Ajuste fino (px) si el arte de FIGHTING_UI no está centrado en su frame. 0 = centro exacto del frame.
+  var MECH_ICON_CROSS_OFFSET_X:Float = 0;
+  var MECH_ICON_CROSS_OFFSET_Y:Float = 0;
+  var mechIconOffX:Float = 0;
+  var mechIconOffY:Float = 0;
+  var mechIconOffSaved:Bool = false;
+
+  var mechCamLocked:Bool = false;
+  var mechCamX:Float = 0;
+  var mechCamY:Float = 0;
+  var mechCamZoom:Float = 1;
+  var mechSavedX:Float = 0;
+  var mechSavedY:Float = 0;
+  var mechSavedZoom:Float = 1;
+
   public function new()
   {
     super('winter-horrorland-animania');
@@ -3340,6 +3609,8 @@ class WinterHorrorlandAnimaniaSong extends Song
 
     ps = PlayState.instance;
     if (ps == null) return;
+
+    mechanicInit();
 
 	if (Save.instance.modOptions['shaders'])
 	{
@@ -3397,6 +3668,7 @@ class WinterHorrorlandAnimaniaSong extends Song
 
     allowEnd = false;
     cancelTimers();
+    mechanicReset();
 	if (Save.instance.modOptions['shaders'])
 	{
 		chromaEffect(0, 0, null);
@@ -3474,6 +3746,7 @@ class WinterHorrorlandAnimaniaSong extends Song
     layoutBars();
     updateSnow(event.elapsed);
     drainOnOpponentHolds(event.elapsed);
+    mechanicUpdate(event.elapsed);
   }
 
   override function onCountdownStart(event:CountdownScriptEvent):Void
@@ -3633,16 +3906,35 @@ class WinterHorrorlandAnimaniaSong extends Song
     super.onSongEvent(event);
 
     var data = event.eventData;
-    if (data == null || data.eventKind != "Blank") return;
+    if (data == null) return;
+
+    // Mientras la cámara está bloqueada por un "dodge", ignorar los focus/zoom del chart.
+    if (mechCamLocked && (data.eventKind == "FocusCamera" || data.eventKind == "ZoomCamera"))
+    {
+      event.cancelEvent();
+      return;
+    }
+
+    if (data.eventKind != "Blank") return;
 
     var v1 = data.getString("value1");
-    if (v1 == null || v1.toLowerCase() != "chroma") return;
+    if (v1 == null) return;
+    var kind = v1.toLowerCase();
 
-    var strength = data.getFloat("value2");
-    var time = data.getFloat("value3");
-    if (strength == null) strength = 0;
-    if (time == null) time = 0;
-    chromaEffect(strength, time, data.getString("value4"));
+    if (kind == "chroma")
+    {
+      var strength = data.getFloat("value2");
+      var time = data.getFloat("value3");
+      if (strength == null) strength = 0;
+      if (time == null) time = 0;
+      chromaEffect(strength, time, data.getString("value4"));
+    }
+    else if (kind == "dodge" || kind == "attack")
+    {
+      var beats = data.getInt("value2");
+      if (beats == null) beats = 1;
+      mechanicTrigger(kind == "dodge", beats + 1, kind == "dodge" && data.getString("value3") == "yah");
+    }
   }
 
   override function onNoteHit(event:HitNoteScriptEvent):Void
@@ -3680,6 +3972,7 @@ class WinterHorrorlandAnimaniaSong extends Song
     if (ps == null) return;
 
     snowBeat(event.beat);
+    mechanicBeat();
 
     if (ps.isChartingMode) return;
 
@@ -3779,6 +4072,1070 @@ class WinterHorrorlandAnimaniaSong extends Song
       screen.alpha = 0;
       FlxTween.tween(screen, {alpha: 1}, 1.5, {ease: FlxEase.sineOut});
     }
+  }
+
+  override function onStepHit(event:SongTimeScriptEvent):Void
+  {
+    super.onStepHit(event);
+    if (ps == null || !mechActive) return;
+
+    if (!mechIsEventActive || mechFocusIcon == null || mechCross == null) return;
+
+    if (event.step % 4 == 2 && mechSemiBeatHits > 0)
+    {
+      var snd = FunkinSound.playOnce(Paths.sound('mechanics/cowbell'));
+      if (snd != null) snd.pitch = 1.25;
+
+      if (mechMode == "dodge") mechTentacleTick();
+      mechSemiBeatHits = mechSemiBeatHits - 1;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // BATTLE MECHANIC
+  // ---------------------------------------------------------------------------
+
+  function mechanicClearRefs()
+  {
+    mechSplash = null;
+    mechCross = null;
+    mechHint = null;
+    mechSuckBar = null;
+    mechCrossTween = null;
+    mechDots = [];
+    mechStripes = [];
+    mechFocusIcon = null;
+    mechIconReturning = null;
+    mechIconTween = null;
+    mechIconEntry = null;
+    mechIconOffSaved = false;
+    mechIsEventActive = false;
+    mechCanHitFinal = false;
+    mechCamLocked = false;
+    mechSemiBeatHits = -1;
+    mechTentacleSide = "Left";
+    mechHealthSucked = 0;
+    mechSnowmanAlpha = 1;
+    mechBarModule = null;
+  }
+
+  function mechanicInit()
+  {
+    mechanicClearRefs();
+
+    mechActive = (ps.currentDifficulty == MECH_DIFFICULTY);
+    if (!mechActive) return;
+
+    var sn = getProp("snowman");
+    if (sn != null) mechSnowmanAlpha = sn.alpha;
+
+    var dad = ps.currentStage.getDad();
+    if (dad != null) dad.ignoreExclusionPref = ["hit"];
+
+    mechHealthSucked = 1;
+    createMechanicUI();
+  }
+
+  function createMechanicUI()
+  {
+    var down = AmScroll.isDown();
+
+    mechSplash = new FunkinSprite();
+    mechSplash.cameras = [ps.camHUD];
+    mechSplash.zIndex = 1700;
+    mechSplash.frames = Paths.getSparrowAtlas("mechanincs/fighting_splash");
+    mechSplash.animation.addByPrefix("y", "splash", 24, false);
+    mechSplash.animation.play("y", true);
+    mechSplash.screenCenter(0x01);
+    mechSplash.x -= 5;
+    mechSplash.y = down ? 0 : FlxG.height * 0.65;
+    mechSplash.animation.onFinish.add(function(name)
+    {
+      mechSplash.visible = false;
+    });
+    mechSplash.visible = false;
+    ps.add(mechSplash);
+
+    mechHint = new FlxText(0, 0, ps.playerStrumline.width, "3", 48);
+    mechHint.scrollFactor.set();
+    mechHint.cameras = [ps.camHUD];
+    mechHint.zIndex = 9999;
+    mechHint.font = Paths.font("Blueprint.ttf");
+    mechHint.alignment = "center";
+    mechHint.y = down ? 550 : 150;
+    mechHint.x = ps.playerStrumline.x;
+    mechHint.alpha = 0;
+    ps.add(mechHint);
+
+    mechCross = new FunkinSprite();
+    mechCross.cameras = [ps.camHUD];
+    mechCross.zIndex = 2000;
+    mechCross.loadGraphic(Paths.image("mechanincs/FIGHTING_UI"));
+    mechCross.x = mechSplash.x + 35;
+    mechCross.y = mechSplash.y + 35;
+    mechCross.alpha = 0;
+    ps.add(mechCross);
+
+    ps.refresh();
+  }
+
+  // Barra de "vida robada": oscurece la parte izquierda de TU barra curva (CurvedHealthBarModule).
+  var mechBarModule = null;
+
+  function mechModuleField(id, field)
+  {
+    var m = mechBarModule;
+    if (m == null)
+    {
+      m = ModuleHandler.getModule(id);
+      mechBarModule = m;
+    }
+    if (m == null) return null;
+    var v = null;
+    try
+    {
+      v = m.scriptGet(field);
+    }
+    catch (e:Dynamic)
+    {
+      v = null;
+    }
+    return v;
+  }
+
+  function mechEnsureSuckBar()
+  {
+    if (mechSuckBar != null) return;
+
+    var red = mechModuleField("CurvedHealthBarModule", "redBar");
+    if (red == null) return;
+
+    mechSuckBar = new FlxSprite();
+    mechSuckBar.loadGraphic(Paths.image("ui/healthbar/WHITEBAR"));
+    mechSuckBar.scrollFactor.set(0, 0);
+    mechSuckBar.cameras = [ps.camHUD];
+    mechSuckBar.zIndex = MECH_SUCK_Z;
+    mechSuckBar.color = MECH_SUCK_COLOR;
+    mechSuckBar.flipY = AmScroll.isDown();
+    mechSuckBar.clipRect = FlxRect.get(0, 0, 0, mechSuckBar.frameHeight);
+    ps.add(mechSuckBar);
+    ps.refresh();
+  }
+
+  function mechUpdateSuckBar()
+  {
+    mechEnsureSuckBar();
+    if (mechSuckBar == null) return;
+
+    var red = mechModuleField("CurvedHealthBarModule", "redBar");
+    if (red == null) return;
+
+    var fw = mechModuleField("CurvedHealthBarModule", "fillWidth");
+    var fh = mechModuleField("CurvedHealthBarModule", "fillHeight");
+    if (fw == null || fw <= 0) fw = mechSuckBar.frameWidth;
+    if (fh == null || fh <= 0) fh = mechSuckBar.frameHeight;
+
+    mechSuckBar.x = red.x;
+    mechSuckBar.y = red.y;
+
+    var r = mechSuckBar.clipRect;
+    if (r == null) r = FlxRect.get(0, 0, 0, fh);
+    r.x = 0;
+    r.y = 0;
+    r.width = (fw / 2) * mechHealthSucked;
+    r.height = fh;
+    mechSuckBar.clipRect = r;
+  }
+
+  function mechKeyName():String
+  {
+    var k = "SPACE";
+    #if mobile
+    k = "TAP";
+    #end
+    return k;
+  }
+
+  function mechPressed():Bool
+  {
+    if (FlxG.keys.justPressed.SPACE) return true;
+
+    #if mobile
+    if (mechCross != null && FlxG.touches != null)
+    {
+      var touches = FlxG.touches.list;
+      var i = 0;
+      while (i < touches.length)
+      {
+        var t = touches[i];
+        i = i + 1;
+        if (t != null && t.justPressed && t.overlaps(mechCross, ps.camHUD)) return true;
+      }
+    }
+    #end
+
+    return false;
+  }
+
+  function mechHintsEnabled():Bool
+  {
+    var h = Save.instance.modOptions["hints"];
+    return h == null || h == true;
+  }
+
+  function mechanicUpdate(elapsed)
+  {
+    if (!mechActive) return;
+
+    mechUpdateSuckBar();
+
+    // La vida máxima baja mientras haya "vida robada".
+    var maxHealth = Constants.HEALTH_MAX - mechHealthSucked;
+    if (ps.health > maxHealth) ps.health = maxHealth;
+    if (ps.health < 0) ps.health = 0;
+
+    if (mechIsEventActive)
+    {
+      if (mechCanHitFinal && mechPressed())
+      {
+        if (mechWithinFinalWindow()) mechHitFinalBeat();
+      }
+      mechCheckTimeout();
+    }
+
+    mechUpdateCamera(elapsed);
+    mechUpdateIconReturn();
+  }
+
+  function mechanicTrigger(isDodge, beatReserve, skipCamera)
+  {
+    if (!mechActive || mechIsEventActive || mechCross == null) return;
+
+    mechMode = isDodge ? "dodge" : "attack";
+    if (isDodge) mechTentacleSide = FlxG.random.bool(50) ? "Left" : "Right";
+
+    mechEventBeats = Std.int(beatReserve);
+    mechSemiBeatHits = (mechEventBeats == 2) ? 1 : -1;
+
+    mechHint.x = ps.playerStrumline.x;
+    mechHint.fieldWidth = ps.playerStrumline.width;
+    FlxTween.cancelTweensOf(mechHint, ['alpha']);
+    if (mechHintsEnabled())
+    {
+      FlxTween.tween(mechHint, {alpha: .9}, .5, {ease: FlxEase.cubeOut});
+      mechHint.text = Std.string(mechEventBeats - 1);
+      mechHint.color = FlxColor.WHITE;
+    }
+    else
+    {
+      mechHint.alpha = 0;
+    }
+
+    if (isDodge)
+    {
+      if (!skipCamera) mechCamLock();
+
+      var sn = getProp("snowman");
+      if (sn != null)
+      {
+        FlxTween.cancelTweensOf(sn);
+        FlxTween.tween(sn, {alpha: .4}, .25, {ease: FlxEase.backOut});
+      }
+    }
+
+    mechIsEventActive = true;
+    mechEventStartBeat = Conductor.instance.currentBeat;
+    mechCanHitFinal = false;
+
+    mechSetupCross(true);
+    mechMoveIconToCross(isDodge ? ps.iconP1 : ps.iconP2, isDodge);
+  }
+
+  function mechanicBeat()
+  {
+    if (!mechActive) return;
+
+    mechIconBop();
+
+    if (!mechIsEventActive || mechFocusIcon == null || mechCross == null) return;
+
+    var beatsPassed = Math.floor(Conductor.instance.currentBeat - mechEventStartBeat);
+
+    if (beatsPassed >= 0 && beatsPassed < mechEventBeats)
+    {
+      var snd = FunkinSound.playOnce(Paths.sound('mechanics/cowbell'));
+      if (snd != null)
+      {
+        if (mechMode == "attack") snd.pitch = 1.1;
+        if (mechSemiBeatHits > 0) snd.pitch = 1.25;
+      }
+
+      if (mechMode == "dodge") mechTentacleTick();
+
+      mechTickHint(mechEventBeats - beatsPassed - 1, null);
+
+      if (beatsPassed < mechEventBeats - 1)
+      {
+        mechSpawnDotPair();
+      }
+      else
+      {
+        // beat final
+        if (mechMode == "attack") mechPlay(ps.currentStage.getBoyfriend(), "pre attack", true, true);
+        mechSpawnFinalStripes();
+        mechCanHitFinal = true;
+        mechTickHint(mechKeyName(), 0xffFF6D96);
+      }
+    }
+  }
+
+  function mechTentacleTick()
+  {
+    var t = getProp("tentacle" + mechTentacleSide);
+    if (t == null) return;
+    t.alpha = 1;
+    t.animation.play("tick", true);
+  }
+
+  function mechTickHint(text, color)
+  {
+    if (!mechHintsEnabled())
+    {
+      mechHint.alpha = 0;
+      return;
+    }
+
+    if (color == null) color = FlxColor.WHITE;
+    FlxTween.cancelTweensOf(mechHint, ['scale.x', 'scale.y']);
+    mechHint.scale.set(1.2, 1.2);
+    mechHint.color = color;
+    FlxTween.tween(mechHint, {"scale.x": 1, "scale.y": 1}, .25, {ease: FlxEase.cubeOut});
+    mechHint.text = Std.string(text);
+  }
+
+  function mechPlay(ch, name, restart, ignoreOther)
+  {
+    if (ch == null) return;
+    if (!ch.hasAnimation(name))
+    {
+      trace("[winter-horrorland-animania] falta la animación '" + name + "' en " + ch.characterId);
+      return;
+    }
+    ch.playAnimation(name, restart, ignoreOther);
+  }
+
+  // ---- dots / stripes ----
+
+  function mechSpawnMover(asset, z, startX, cx, cy, flip, alphaTo, fadeTime, duration, list)
+  {
+    var s = new FunkinSprite();
+    s.cameras = [ps.camHUD];
+    s.zIndex = z;
+    s.loadGraphic(Paths.image(asset));
+    s.x = startX;
+    s.y = cy - s.height / 2;
+    s.flipX = flip;
+    s.alpha = 0;
+    ps.add(s);
+    list.push(s);
+
+    FlxTween.tween(s, {alpha: alphaTo}, fadeTime, {ease: FlxEase.quadOut});
+    FlxTween.tween(s, {x: cx - s.width / 2, y: cy - s.height / 2}, duration, {
+      ease: FlxEase.linear,
+      onComplete: function(t)
+      {
+        mechDisposeMover(s, list);
+      }
+    });
+  }
+
+  function mechDisposeMover(s, list)
+  {
+    list.remove(s);
+    if (ps != null) ps.remove(s, true);
+    s.destroy();
+  }
+
+  function mechClearMovers(list)
+  {
+    while (list.length > 0)
+    {
+      var s = list.pop();
+      FlxTween.cancelTweensOf(s);
+      if (ps != null) ps.remove(s, true);
+      s.destroy();
+    }
+  }
+
+  function mechSpawnDotPair()
+  {
+    if (mechCross == null) return;
+
+    var cx = mechCross.x + mechCross.width / 2;
+    var cy = mechCross.y + mechCross.height / 2;
+    var dur = (60 / Conductor.instance.bpm) * MECH_DOT_SPEED;
+
+    mechSpawnMover("mechanincs/beat-dot", MECH_DOT_Z, cx - MECH_DOT_OFFSET * 2.0, cx, cy, false, .5, .15, dur, mechDots);
+    mechSpawnMover("mechanincs/beat-dot", MECH_DOT_Z, cx + MECH_DOT_OFFSET * 1.8, cx, cy, false, .5, .15, dur, mechDots);
+    ps.refresh();
+  }
+
+  function mechSpawnFinalStripes()
+  {
+    if (mechCross == null) return;
+
+    var cx = mechCross.x + mechCross.width / 2;
+    var cy = mechCross.y + mechCross.height / 2;
+    var dur = (60 / Conductor.instance.bpm) * (MECH_DOT_SPEED * 0.9);
+
+    mechSpawnMover("mechanincs/beat-stripe", MECH_STRIPE_Z, cx - MECH_DOT_OFFSET * 2.3, cx, cy, false, 1, .1, dur, mechStripes);
+    mechSpawnMover("mechanincs/beat-stripe", MECH_STRIPE_Z, cx + MECH_DOT_OFFSET * 2.1, cx, cy, true, 1, .1, dur, mechStripes);
+
+    mechTargetFinalBeat = Conductor.instance.currentBeatTime + 1.0;
+    mechCanHitFinal = true;
+
+    ps.refresh();
+  }
+
+  // ---- hit / miss ----
+
+  function mechWithinFinalWindow():Bool
+  {
+    if (!mechCanHitFinal) return false;
+    var diff = Conductor.instance.currentBeatTime - mechTargetFinalBeat;
+    return (diff >= -MECH_FINAL_PRE_WINDOW && diff <= MECH_FINAL_POST_WINDOW);
+  }
+
+  function mechHitFinalBeat()
+  {
+    if (!mechCanHitFinal || !mechWithinFinalWindow()) return;
+
+    mechCanHitFinal = false;
+
+    var beatDiff = Conductor.instance.currentBeatTime - mechTargetFinalBeat;
+    var noteDiff = Std.int(beatDiff * Conductor.instance.beatLengthMs);
+    var rating = Scoring.judgeNote(noteDiff);
+
+    mechSplash.angle = FlxG.random.float(-50, 50);
+    mechSplash.animation.play("y", true);
+    mechSplash.visible = true;
+
+    mechClearMovers(mechStripes);
+
+    mechEndEvent(true, rating);
+  }
+
+  function mechCheckTimeout()
+  {
+    if (!mechCanHitFinal) return;
+
+    var beatsPassed = Math.floor(Conductor.instance.currentBeat - mechEventStartBeat);
+    if (beatsPassed >= mechEventBeats + 1)
+    {
+      mechCanHitFinal = false;
+      mechEndEvent(false, "miss");
+    }
+  }
+
+  function mechEndEvent(success, rating)
+  {
+    var bf = ps.currentStage.getBoyfriend();
+    var dad = ps.currentStage.getDad();
+
+    FlxTween.cancelTweensOf(mechHint, ['alpha']);
+    if (mechHintsEnabled()) FlxTween.tween(mechHint, {alpha: 0}, .5, {ease: FlxEase.cubeOut});
+    else mechHint.alpha = 0;
+
+    mechCamRelease();
+
+    var sn = getProp("snowman");
+    if (sn != null) FlxTween.tween(sn, {alpha: mechSnowmanAlpha}, .25, {ease: FlxEase.backOut, startDelay: .8});
+
+    if (rating == "miss") success = false;
+
+    mechSpawnRating(success ? rating : "missed");
+
+    mechIsEventActive = false;
+    mechCanHitFinal = false;
+
+    if (mechFocusIcon != null)
+    {
+      mechSetupCross(false);
+      mechMoveIconBack(mechFocusIcon, mechFocusIcon == ps.iconP1);
+    }
+
+    mechClearMovers(mechDots);
+    mechClearMovers(mechStripes);
+
+    if (success)
+    {
+      if (mechMode == "dodge")
+      {
+        var tent = getProp("tentacle" + mechTentacleSide);
+        if (tent != null)
+        {
+          tent.alpha = 1;
+          tent.animation.play("attack", true);
+        }
+
+        if (ps.health > .5)
+        {
+          FunkinSound.playOnce(Paths.sound('mechanics/dodge'));
+          FunkinSound.playOnce(Paths.sound('mechanics/tentacle ' + FlxG.random.int(1, 2)));
+
+          if (mechTentacleSide == "Left") mechPlay(bf, "dodge" + (FlxG.random.bool(50) ? 1 : 2), true, true);
+          else mechPlay(bf, "dodge" + (FlxG.random.bool(50) ? 1 : 3), true, false);
+
+          mechDodgeFlash(bf);
+        }
+        else
+        {
+          FunkinSound.playOnce(Paths.sound('mechanics/parry'));
+          FunkinSound.playOnce(Paths.sound('mechanics/tentacle ' + FlxG.random.int(1, 2)));
+          mechPlay(bf, "parry", true, true);
+          later(.5, function(_)
+          {
+            ps.health = ps.health + .45;
+          });
+        }
+      }
+      else
+      {
+        var snd = FunkinSound.playOnce(Paths.sound('mechanics/attack'));
+        if (snd != null) snd.pitch = FlxG.random.float(.9, 1.1);
+
+        FunkinSound.playOnce(Paths.sound('mechanics/success'), .8);
+
+        var loseSuck = 0;
+        if (rating == "sick") loseSuck = .5;
+        else if (rating == "good") loseSuck = .335;
+        else if (rating == "shit") loseSuck = .15;
+        else if (rating == "bad") loseSuck = .05;
+
+        if (bf != null) bf.canPlayOtherAnims = true;
+        mechPlay(bf, "attack", true, true);
+        FunkinSound.playOnce(Paths.sound('mechanics/attack'));
+
+        later(.15, function(_)
+        {
+          mechPlay(dad, "hit", true, true);
+          ps.camGame.shake(.005, .15);
+          var from = mechHealthSucked;
+          var to = Math.max(0, from - loseSuck);
+          FlxTween.num(from, to, .25, {ease: FlxEase.sineInOut}, function(v)
+          {
+            mechHealthSucked = v;
+          });
+        });
+        later(.5, function(_)
+        {
+          if (bf != null) bf.canPlayOtherAnims = true;
+        });
+        later(.45, function(_)
+        {
+          if (dad != null) dad.canPlayOtherAnims = true;
+        });
+
+        later(.15, function(_)
+        {
+          mechFlickerIcon(ps.iconP2);
+        });
+
+        ps.health = ps.health + .35;
+      }
+    }
+    else
+    {
+      if (mechMode == "dodge")
+      {
+        var tent2 = getProp("tentacle" + mechTentacleSide);
+        if (tent2 != null)
+        {
+          tent2.alpha = 1;
+          tent2.animation.play("attack", true);
+        }
+
+        FunkinSound.playOnce(Paths.sound('mechanics/bfhit'));
+        FunkinSound.playOnce(Paths.sound('mechanics/tentacle ' + FlxG.random.int(1, 2)));
+        mechPlay(bf, mechTentacleSide.toLowerCase() + " hit", true, true);
+
+        later(.15, function(_)
+        {
+          if (bf != null) FlxFlicker.flicker(bf, 1, 1 / 30, true, true, function(f)
+          {
+            FlxFlicker.flicker(bf, 0.5, 1 / 60, true, true, null);
+          });
+          mechFlickerIcon(ps.iconP1);
+        });
+
+        later(.1, function(_)
+        {
+          ps.camGame.shake(.005, .15);
+        });
+
+        ps.health = ps.health - .4;
+      }
+      else
+      {
+        FunkinSound.playOnce(Paths.sound('mechanics/failed'));
+        mechPlay(bf, "singLEFTmiss", true, true);
+      }
+    }
+  }
+
+  function mechFlickerIcon(icon)
+  {
+    if (icon == null) return;
+    FlxFlicker.flicker(icon, 1, 1 / 30, true, true, function(f)
+    {
+      FlxFlicker.flicker(icon, 0.5, 1 / 60, true, true, null);
+    });
+  }
+
+  // Reemplazo del FunkinTrail original (no existe en V-Slice y FlxTrail no copia atlas de Animate):
+  // destello cian que vuelve a blanco. Se omite en lowQuality.
+  function mechDodgeFlash(bf)
+  {
+    if (bf == null || Save.instance.modOptions["lowQuality"]) return;
+    FlxTween.cancelTweensOf(bf, ['color']);
+    bf.color = 0xFF66FFFF;
+    FlxTween.color(bf, .45, 0xFF66FFFF, FlxColor.WHITE, {ease: FlxEase.cubeOut});
+  }
+
+  function mechSpawnRating(rating)
+  {
+    var rat = new FunkinSprite();
+    rat.frames = Paths.getSparrowAtlas("mechanincs/ratings");
+    rat.animation.addByPrefix("y", rating, 24, false);
+    rat.animation.play("y", true);
+    rat.screenCenter();
+    rat.cameras = [ps.camHUD];
+    rat.zIndex = 2100;
+    rat.y = mechCross.y - rat.height - 10;
+    if (AmScroll.isDown()) rat.y = mechCross.y + mechCross.height + 10;
+
+    rat.acceleration.y = 550;
+    rat.velocity.y -= FlxG.random.int(140, 175);
+    rat.velocity.x -= FlxG.random.int(0, 10);
+    rat.angle = FlxG.random.int(-5, 5);
+    rat.angularVelocity = FlxG.random.int(-5, 5);
+
+    var baseX = rat.scale.x;
+    var baseY = rat.scale.y;
+    rat.scale.set(baseX * 0.85, baseY * 0.85);
+
+    var beatSec = Conductor.instance.beatLengthMs * 0.001;
+    FlxTween.tween(rat, {"scale.x": baseX, "scale.y": baseY}, beatSec / 2, {ease: FlxEase.bounceOut});
+    FlxTween.tween(rat, {alpha: 0, angle: FlxG.random.int(-8, 8)}, 0.1, {
+      startDelay: beatSec,
+      onComplete: function(t)
+      {
+        if (ps != null) ps.remove(rat, true);
+        rat.destroy();
+      }
+    });
+
+    ps.add(rat);
+    ps.refresh();
+  }
+
+  function mechSetupCross(show)
+  {
+    if (mechCrossTween != null) mechCrossTween.cancel();
+    if (show)
+    {
+      mechCross.angle = -55;
+      mechCross.scale.set(1.5, 1.5);
+      mechCross.alpha = 0;
+      mechCrossTween = FlxTween.tween(mechCross, {angle: 0, "scale.x": 1, "scale.y": 1, alpha: .6}, 18 / 24, {ease: FlxEase.cubeOut});
+    }
+    else
+    {
+      mechCross.scale.set(.9, .9);
+      mechCrossTween = FlxTween.tween(mechCross, {"scale.x": 1.4, "scale.y": 1.4, alpha: 0}, 7 / 24, {startDelay: 1 / 24, ease: FlxEase.quartOut});
+    }
+  }
+
+  // ---- iconos (AnimaniaStuff reposiciona los iconos cada frame, así que se "toma" el icono) ----
+
+  function mechTakeAmEntry(icon)
+  {
+    var am = ModuleHandler.getModule("AnimaniaStuff");
+    if (am == null) return null;
+
+    var list = null;
+    try
+    {
+      list = am.scriptGet("amTakeIcons");
+    }
+    catch (e:Dynamic)
+    {
+      list = null;
+    }
+    if (list == null) return null;
+
+    var i = 0;
+    while (i < list.length)
+    {
+      var entry = list[i];
+      if (entry != null && entry.icon == icon)
+      {
+        list.splice(i, 1);
+        return entry;
+      }
+      i = i + 1;
+    }
+    return null;
+  }
+
+  function mechGiveAmEntry(entry)
+  {
+    if (entry == null) return;
+
+    var am = ModuleHandler.getModule("AnimaniaStuff");
+    if (am == null) return;
+
+    var list = null;
+    try
+    {
+      list = am.scriptGet("amTakeIcons");
+    }
+    catch (e:Dynamic)
+    {
+      list = null;
+    }
+    if (list != null && list.indexOf(entry) == -1) list.push(entry);
+  }
+
+  // AnimaniaModule (si su HUD está activo) es quien dimensiona los iconos: su tamaño base es la referencia.
+  function mechAmModule()
+  {
+    var am = ModuleHandler.getModule("AnimaniaModule");
+    if (am == null) return null;
+
+    var active = false;
+    try
+    {
+      active = am.scriptGet("usingAmTakeUI") == true;
+    }
+    catch (e:Dynamic)
+    {
+      active = false;
+    }
+    return active ? am : null;
+  }
+
+  function mechNormalSize()
+  {
+    var size = MECH_ICON_NORMAL_SIZE;
+    var am = mechAmModule();
+    if (am != null)
+    {
+      try
+      {
+        size = am.scriptGet("ICON_BASE_SIZE");
+      }
+      catch (e:Dynamic)
+      {
+        size = MECH_ICON_NORMAL_SIZE;
+      }
+    }
+    return size;
+  }
+
+  function mechFocusSize()
+  {
+    return mechNormalSize() * MECH_ICON_FOCUS_MULT;
+  }
+
+  function mechLockModuleIcon(icon, lock)
+  {
+    var am = mechAmModule();
+    if (am == null) return;
+    am.scriptCall(lock ? "lockIcon" : "unlockIcon", [icon]);
+  }
+
+  // Mientras el icono está sobre la mira se ignora el iconOffset (el del json del personaje / offsets de AnimaniaStuff)
+  // para que el centro del icono quede EXACTAMENTE en el centro de la mira.
+  function mechZeroIconOffset(icon)
+  {
+    if (mechIconOffSaved) return;
+    mechIconOffX = icon.iconOffset.x;
+    mechIconOffY = icon.iconOffset.y;
+    mechIconOffSaved = true;
+    icon.iconOffset.set(0, 0);
+  }
+
+  // Devuelve el iconOffset original manteniendo el centro visual del icono donde estaba (sin salto).
+  function mechRestoreIconOffset(icon)
+  {
+    if (!mechIconOffSaved || icon == null) return;
+    mechIconOffSaved = false;
+    icon.iconOffset.set(mechIconOffX, mechIconOffY);
+    icon.updateHitbox();
+    icon.x += mechIconOffX;
+    icon.y += mechIconOffY;
+  }
+
+  function mechApplyIconSize(icon, px)
+  {
+    var fw = icon.frameWidth;
+    var fh = icon.frameHeight;
+    if (fw <= 1 || fh <= 1)
+    {
+      fw = 150;
+      fh = 150;
+    }
+    var s = (fw > fh) ? (px * icon.size.x) / fw : (px * icon.size.y) / fh;
+    icon.scale.set(s, s);
+    icon.updateHitbox();
+  }
+
+  function mechMoveIconToCross(icon, isPlayer)
+  {
+    if (icon == null) return;
+
+    mechFinishIconReturn();
+    if (mechIconTween != null) mechIconTween.cancel();
+    mechIconTween = null;
+
+    if (mechIconOffSaved && mechFocusIcon != null && mechFocusIcon != icon) mechRestoreIconOffset(mechFocusIcon);
+    mechFocusIcon = icon;
+
+    mechIconWasAuto = icon.autoUpdate;
+    mechIconBopEvery = icon.bopEvery;
+    icon.autoUpdate = false;
+    icon.bopEvery = 0;
+    mechIconEntry = mechTakeAmEntry(icon);
+    mechLockModuleIcon(icon, true);
+
+    if (icon.bopTween != null) icon.bopTween.cancel();
+    FlxTween.cancelTweensOf(icon.scale);
+    mechZeroIconOffset(icon);
+    mechApplyIconSize(icon, mechFocusSize());
+    mechFocusScale = icon.scale.x;
+    icon.playAnimation("idle");
+    icon.zIndex = 1800;
+    ps.refresh();
+
+    // Centro de la mira (el mismo que usan los puntos/rayas) y centro del icono ya escalado, sin offsets.
+    var tx = mechCross.x + mechCross.width / 2 - icon.width / 2 + MECH_ICON_CROSS_OFFSET_X;
+    var ty = mechCross.y + mechCross.height / 2 - icon.height / 2 + MECH_ICON_CROSS_OFFSET_Y;
+    mechIconTween = FlxTween.tween(icon, {x: tx, y: ty, angle: 0}, 9 / 24, {
+      ease: FlxEase.quartIn,
+      onComplete: function(t)
+      {
+        mechIconTween = null;
+      }
+    });
+  }
+
+  function mechIconHome(icon, isPlayer)
+  {
+    var am = mechAmModule();
+    if (am != null)
+    {
+      var pos = am.scriptCall("getIconHome", [icon, isPlayer]);
+      if (pos != null) return pos;
+    }
+
+    var bar = ps.healthBar;
+    var barPercent = FlxMath.remapToRange(bar.value, 0, 2, 100, 0) * 0.01;
+    var x = 0.0;
+    if (isPlayer) x = bar.x + (bar.width * barPercent - 26);
+    else x = bar.x + (bar.width * barPercent) - (icon.width - 26);
+    var y = bar.y - (icon.height / 2);
+    return [x, y];
+  }
+
+  function mechMoveIconBack(icon, isPlayer)
+  {
+    if (mechIconTween != null) mechIconTween.cancel();
+    mechIconTween = null;
+
+    mechRestoreIconOffset(icon);
+
+    icon.zIndex = 850;
+    ps.refresh();
+
+    mechIconReturning = icon;
+    mechIconReturnIsPlayer = isPlayer;
+    mechIconRetFromX = icon.x;
+    mechIconRetFromY = icon.y;
+    mechIconRetP = 0;
+
+    mechIconTween = FlxTween.num(0, 1, 9 / 24, {
+      ease: FlxEase.quartIn,
+      onComplete: function(t)
+      {
+        mechIconTween = null;
+        mechFinishIconReturn();
+      }
+    }, function(v)
+    {
+      mechIconRetP = v;
+    });
+  }
+
+  function mechUpdateIconReturn()
+  {
+    var icon = mechIconReturning;
+    if (icon == null) return;
+
+    var p = mechIconRetP;
+    var fromSize = mechFocusSize();
+    mechApplyIconSize(icon, fromSize + (mechNormalSize() - fromSize) * p);
+    var home = mechIconHome(icon, mechIconReturnIsPlayer);
+    icon.x = mechIconRetFromX + (home[0] - mechIconRetFromX) * p;
+    icon.y = mechIconRetFromY + (home[1] - mechIconRetFromY) * p;
+  }
+
+  function mechFinishIconReturn()
+  {
+    var icon = mechIconReturning;
+    if (icon == null) return;
+    mechIconReturning = null;
+
+    mechRestoreIcon(icon);
+  }
+
+  function mechRestoreIcon(icon)
+  {
+    icon.angle = 0;
+    mechRestoreIconOffset(icon);
+    if (icon.bopTween != null) icon.bopTween.cancel();
+    FlxTween.cancelTweensOf(icon.scale);
+    if (mechAmModule() != null) mechApplyIconSize(icon, mechNormalSize());
+    else icon.snapToTargetSize();
+    mechLockModuleIcon(icon, false);
+    icon.bopEvery = mechIconBopEvery;
+    icon.autoUpdate = mechIconWasAuto;
+    icon.zIndex = 850;
+    mechGiveAmEntry(mechIconEntry);
+    mechIconEntry = null;
+    if (mechFocusIcon == icon) mechFocusIcon = null;
+  }
+
+  function mechIconBop()
+  {
+    var icon = mechFocusIcon;
+    if (icon == null || mechIconTween != null || !mechIsEventActive) return;
+
+    // Rebote hacia ARRIBA y vuelve al tamaño de foco (antes terminaba en 100/150 y el icono quedaba más chico).
+    FlxTween.cancelTweensOf(icon.scale);
+    icon.scale.set(mechFocusScale * 1.2, mechFocusScale * 1.2);
+    FlxTween.tween(icon.scale, {x: mechFocusScale, y: mechFocusScale}, .2, {ease: FlxEase.sineOut});
+  }
+
+  // ---- cámara (reemplaza forceFocusedPos/Zoom y neededZoom del fork) ----
+
+  function mechCamLock()
+  {
+    var bf = ps.currentStage.getBoyfriend();
+    if (bf == null) return;
+
+    mechSavedX = ps.cameraFollowPoint.x;
+    mechSavedY = ps.cameraFollowPoint.y;
+    mechSavedZoom = ps.currentCameraZoom;
+
+    ps.cancelCameraFollowTween();
+    ps.cancelCameraZoomTween();
+    ps.resetCamera(false, false, false);
+
+    var fp = bf.cameraFocusPoint;
+    mechCamX = fp.x + MECH_CAM_OFFSET_X;
+    mechCamY = fp.y + MECH_CAM_OFFSET_Y;
+    mechCamZoom = MECH_CAM_ZOOM * ps.stageZoom;
+
+    mechCamLocked = true;
+  }
+
+  function mechUpdateCamera(elapsed)
+  {
+    if (!mechCamLocked) return;
+
+    // Si algo (otro módulo) arrancó un tween de cámara, se cancela y se vuelve a seguir el punto.
+    ps.cancelCameraFollowTween();
+    ps.cancelCameraZoomTween();
+    if (FlxG.camera.target == null) ps.resetCamera(false, false, false);
+
+    ps.cameraFollowPoint.setPosition(mechCamX, mechCamY);
+    ps.currentCameraZoom = MathUtil.smoothLerpPrecision(ps.currentCameraZoom, mechCamZoom, elapsed, 0.35, 0.01);
+  }
+
+  function mechCamRelease()
+  {
+    if (!mechCamLocked) return;
+    mechCamLocked = false;
+
+    ps.tweenCameraToPosition(mechSavedX, mechSavedY, 0.7, FlxEase.cubeOut);
+    ps.tweenCameraZoom(mechSavedZoom / FlxCamera.defaultZoom, 0.7, true, FlxEase.cubeOut);
+  }
+
+  // ---- reset (retry) ----
+
+  function mechanicReset()
+  {
+    if (ps == null || !mechActive) return;
+
+    mechIsEventActive = false;
+    mechCanHitFinal = false;
+    mechSemiBeatHits = -1;
+    mechTentacleSide = "Left";
+    mechCamLocked = false;
+
+    mechClearMovers(mechDots);
+    mechClearMovers(mechStripes);
+
+    // Iconos: devolverle el control a AnimaniaStuff.
+    if (mechIconTween != null) mechIconTween.cancel();
+    mechIconTween = null;
+    if (mechIconReturning == null) mechIconReturning = mechFocusIcon;
+    mechFinishIconReturn();
+    mechFocusIcon = null;
+
+    if (mechCrossTween != null) mechCrossTween.cancel();
+    mechCrossTween = null;
+    if (mechCross != null)
+    {
+      FlxTween.cancelTweensOf(mechCross);
+      mechCross.alpha = 0;
+      mechCross.angle = 0;
+      mechCross.scale.set(1, 1);
+    }
+    if (mechSplash != null) mechSplash.visible = false;
+    if (mechHint != null)
+    {
+      FlxTween.cancelTweensOf(mechHint);
+      mechHint.alpha = 0;
+      mechHint.scale.set(1, 1);
+    }
+
+    mechHealthSucked = 1;
+    if (mechSuckBar != null) mechUpdateSuckBar();
+
+    var bf = ps.currentStage.getBoyfriend();
+    if (bf != null)
+    {
+      FlxFlicker.stopFlickering(bf);
+      bf.visible = true;
+      FlxTween.cancelTweensOf(bf, ['color']);
+      bf.color = FlxColor.WHITE;
+    }
+    if (ps.iconP1 != null) FlxFlicker.stopFlickering(ps.iconP1);
+    if (ps.iconP2 != null) FlxFlicker.stopFlickering(ps.iconP2);
+
+    var sn = getProp("snowman");
+    if (sn != null)
+    {
+      FlxTween.cancelTweensOf(sn, ['alpha']);
+      sn.alpha = mechSnowmanAlpha;
+    }
+
+    var tl = getProp("tentacleLeft");
+    if (tl != null) tl.alpha = 0;
+    var tr = getProp("tentacleRight");
+    if (tr != null) tr.alpha = 0;
   }
 
   function createHahaha(xx, yy)
@@ -4378,6 +5735,12 @@ class TimeBarModule extends Module
 
   var BAR_HEIGHT:Float = 9;
 
+  // La altura también escala con el tamaño de la pantalla (resolución real vs. la base 1280x720), no solo el ancho.
+  // 1 = proporcional a la pantalla, 0 = altura fija (BAR_HEIGHT). El resultado se limita a [MIN, MAX] veces BAR_HEIGHT.
+  var BAR_HEIGHT_SCREEN_STRENGTH:Float = 1;
+  var BAR_HEIGHT_MIN_SCALE:Float = 0.6;
+  var BAR_HEIGHT_MAX_SCALE:Float = 3;
+
   var BAR_ALPHA:Float = 0.8;
 
   var BAR_COLOR = 0xFFFFFFFF;
@@ -4499,6 +5862,19 @@ class TimeBarModule extends Module
     return p;
   }
 
+  // Pantalla más grande -> factor > 1 (barra más alta); pantalla más chica -> factor < 1 (barra más baja).
+  function getHeightScale()
+  {
+    var size = FullScreenScaleMode.logicalSize;
+    var baseH:Float = FlxG.initialHeight;
+    if (size == null || size.y <= 0 || baseH <= 0) return 1;
+
+    var k:Float = 1 + (size.y / baseH - 1) * BAR_HEIGHT_SCREEN_STRENGTH;
+    if (k < BAR_HEIGHT_MIN_SCALE) k = BAR_HEIGHT_MIN_SCALE;
+    if (k > BAR_HEIGHT_MAX_SCALE) k = BAR_HEIGHT_MAX_SCALE;
+    return k;
+  }
+
   function layoutBar(cam, progress)
   {
     if (progress <= 0)
@@ -4517,7 +5893,7 @@ class TimeBarModule extends Module
     var screenLeft = -BAR_OVERSCAN;
     var screenTop = -BAR_OVERSCAN;
     var screenW = cam.width * progress + BAR_OVERSCAN;
-    var screenH = BAR_HEIGHT + BAR_OVERSCAN;
+    var screenH = BAR_HEIGHT * getHeightScale() + BAR_OVERSCAN;
 
     bar.scale.set(screenW / z / bar.frameWidth, screenH / z / bar.frameHeight);
     bar.updateHitbox();
@@ -10974,17 +12350,229 @@ class ScreenShakeSongEvent extends SongEvent
   }
 }
 
+/**
+ * Evento AngleCamera: inclina (rota) el contenido de camGame con scrollAngle.
+ * El HUD no se toca.
+ *
+ * Formato en el chart:
+ * {
+ *   'e': 'AngleCamera',
+ *   'v': {
+ *     'angle': FLOAT,    // angulo destino en grados
+ *     'delay': FLOAT,    // espera antes de empezar, en steps
+ *     'duration': FLOAT, // duracion en steps
+ *     'ease': ENUM,      // funcion de easing ('INSTANT' ignora duration)
+ *     'easeDir': ENUM    // In / Out / InOut
+ *   }
+ * }
+ *
+ * Un AngleCamera nuevo cancela el tween anterior y arranca desde el angulo
+ * actual, asi que "angle: 0 + INSTANT" corta una inclinacion larga en seco
+ * (como hace dadbattle en 32000ms).
+ */
+class AngleCameraSongEvent extends SongEvent
+{
+  static final DEFAULT_ANGLE:Float = 0.0;
+  static final DEFAULT_DELAY:Float = 0.0;
+  static final DEFAULT_DURATION:Float = 4.0;
+
+  var angleTween:Null<FlxTween> = null;
+
+  public function new()
+  {
+    super('AngleCamera');
+  }
+
+  public override function handleEvent(data:SongEventData):Void
+  {
+    var pf = PlayState.instance;
+    if (pf == null || pf.camGame == null) return;
+
+    var angle:Float = data.getFloat('angle') ?? DEFAULT_ANGLE;
+    var delay:Float = data.getFloat('delay') ?? DEFAULT_DELAY;
+    var duration:Float = data.getFloat('duration') ?? DEFAULT_DURATION;
+    var ease:String = data.getString('ease') ?? SongEvent.DEFAULT_EASE;
+    var easeDir:String = data.getString('easeDir') ?? SongEvent.DEFAULT_EASE_DIR;
+
+    if (SongEvent.EASE_TYPE_DIR_REGEX.match(ease) || ease == 'linear') easeDir = '';
+
+    var easeFn:Null<Float->Float> = null;
+    if (ease != 'INSTANT')
+    {
+      var fnName:String = '$ease$easeDir';
+      easeFn = Reflect.field(FlxEase, fnName);
+      if (easeFn == null)
+      {
+        trace('[AngleCamera] Funcion de ease invalida: $fnName, se usa linear.');
+        easeFn = FlxEase.linear;
+      }
+    }
+
+    var stepMs:Float = Conductor.instance.stepLengthMs;
+    var durSeconds:Float = Math.max(stepMs * duration / Constants.MS_PER_SEC, 0);
+    var delaySeconds:Float = Math.max(stepMs * delay / Constants.MS_PER_SEC, 0);
+
+    if (angleTween != null) angleTween.cancel();
+    angleTween = null;
+
+    var cam:FlxCamera = pf.camGame;
+
+    // INSTANT, o duracion y delay en cero: se aplica directo.
+    if (easeFn == null || (durSeconds <= 0 && delaySeconds <= 0))
+    {
+      cam.scrollAngle = angle;
+      return;
+    }
+
+    angleTween = FlxTween.num(cam.scrollAngle, angle, durSeconds, {ease: easeFn, startDelay: delaySeconds}, function(v:Float) {
+      cam.scrollAngle = v;
+    });
+  }
+
+  function stopTween():Void
+  {
+    if (angleTween != null) angleTween.cancel();
+    angleTween = null;
+  }
+
+  function resetAngle():Void
+  {
+    var pf = PlayState.instance;
+    if (pf != null && pf.camGame != null) pf.camGame.scrollAngle = 0;
+  }
+
+  public override function onSongRetry(event:SongRetryEvent):Void
+  {
+    stopTween();
+    resetAngle();
+  }
+
+  public override function onGameOver(event:ScriptEvent):Void
+  {
+    stopTween();
+    resetAngle();
+  }
+
+  public override function onDestroy(event:ScriptEvent):Void
+  {
+    // La camara se destruye con el PlayState: solo soltamos el tween.
+    stopTween();
+  }
+
+  public override function getTitle():String
+  {
+    return 'Angle Camera';
+  }
+
+  public override function getEventSchema():SongEventSchema
+  {
+    return new SongEventSchema([
+      {
+        name: 'angle',
+        title: 'Angle',
+        defaultValue: DEFAULT_ANGLE,
+        step: 0.5,
+        type: 'float',
+        units: 'deg'
+      },
+      {
+        name: 'delay',
+        title: 'Delay',
+        defaultValue: DEFAULT_DELAY,
+        min: 0,
+        step: 0.5,
+        type: 'float',
+        units: 'steps'
+      },
+      {
+        name: 'duration',
+        title: 'Duration',
+        defaultValue: DEFAULT_DURATION,
+        min: 0,
+        step: 0.5,
+        type: 'float',
+        units: 'steps'
+      },
+      {
+        name: 'ease',
+        title: 'Easing Type',
+        defaultValue: SongEvent.DEFAULT_EASE,
+        type: 'enum',
+        keys: [
+          'Linear' => 'linear',
+          'Instant (Ignores duration)' => 'INSTANT',
+          'Sine' => 'sine',
+          'Quad' => 'quad',
+          'Cube' => 'cube',
+          'Quart' => 'quart',
+          'Quint' => 'quint',
+          'Expo' => 'expo',
+          'Smooth Step' => 'smoothStep',
+          'Smoother Step' => 'smootherStep',
+          'Elastic' => 'elastic',
+          'Back' => 'back',
+          'Bounce' => 'bounce',
+          'Circ' => 'circ'
+        ]
+      },
+      {
+        name: 'easeDir',
+        title: 'Easing Direction',
+        defaultValue: SongEvent.DEFAULT_EASE_DIR,
+        type: 'enum',
+        keys: ['In' => 'In', 'Out' => 'Out', 'In/Out' => 'InOut']
+      }
+    ]);
+  }
+}
+
 class AnimaniaModule extends Module
 {
 	var BANNED_NOTEKINDS = ["noAnimation", "noanim", "parents-miss", "solotime"];
-	var ONLY_HUD_SONGS = ["phone-call"];
+
+	static var MEGA_ALLOWED_STAGES:Array<String> = [
+		"mainStageAmTake",
+		"serviceEnterance",
+		"xMasCityMallAmTake",
+		"xMasCityMallAmTakeDark",
+		"xMasCityMallNastyAmTake",
+		"phoneCallStreet"
+	];
+
+	function isAllowedStage():Bool
+	{
+		var play = PlayState.instance;
+		if (play == null || play.currentStage == null) return false;
+		return MEGA_ALLOWED_STAGES.indexOf(play.currentStage.id) != -1;
+	}
+
+	// Altura de los iconos respecto a la línea central de la barra curva (px). Negativo = más arriba. En downscroll se invierte.
+	var ICON_Y_OFFSET:Float = -5;
+
+	// true = se ignora el iconOffset.y (json del personaje / offsets de AnimaniaStuff) para que el CENTRO del icono
+	// quede siempre a ICON_Y_OFFSET de la curva, sin importar qué icono sea. false = el offset se suma como en V-Slice.
+	var ICON_IGNORE_OFFSET_Y:Bool = true;
+
+	// Línea central (en y, px de la imagen) del relleno WHITEBAR.png (728x37), muestreada cada 16 px de x.
+	var CURVE_CENTER:Array<Float> = [11.3, 11.3, 11.3, 12.3, 13.6, 14.7, 15.8, 16.9, 17.8, 18.7, 19.5, 20.5, 21.4, 21.6, 22.5, 22.6, 23.5, 23.5, 24.1, 24.5, 24.5, 25.0, 25.0, 25.0, 24.9, 24.5, 24.5, 24.1, 23.6, 23.5, 22.9, 22.5, 21.9, 21.5, 20.6, 19.8, 19.1, 18.4, 17.4, 16.4, 15.3, 14.1, 12.9, 11.7, 11.7, 11.7, 11.7];
+	var CURVE_STEP:Float = 16;
+
+	// Cuánto sigue el icono a la curva al subir/bajar según la vida: 1 = exactamente la curva de la barra,
+	// 0 = quieto (siempre en el centro de la barra), >1 = exagera el movimiento. CURVE_MID = altura central de la curva.
+	var ICON_CURVE_FOLLOW:Float = 1;
+	var CURVE_MID:Float = 25;
+	var CURVE_IMG_W:Float = 728;
+	var CURVE_IMG_H:Float = 37;
+
+	// Iconos que otro script (p.ej. la mecánica de WinterHorrorland) controla a mano: este módulo no los toca.
+	var lockedIcons:Array<Dynamic> = [];
 
 	var camX:Float = 25.0;
 	var camY:Float = 25.0;
 
 	var ICON_BASE_SIZE:Float = 125;
 	var ICON_BOP_SCALE:Float = 0.2;
-	var POSITION_OFFSET:Int = 20;
+	var POSITION_OFFSET:Int = -5;
 
 	var BAR_MODULE_ID:String = "CurvedHealthBarModule";
 
@@ -11004,19 +12592,86 @@ class AnimaniaModule extends Module
 		super("AnimaniaModule", 15);
 	}
 
-	function baseFNFSong():Bool
-	{
-		if (PlayState.instance == null)
-			return false;
-		return listBaseGameSongIds().contains((PlayState.instance.currentSong?.id.toLowerCase() ?? ''));
-	}
-
+	// El HUD de AnimaniaModule va por stage (igual que CurvedHealthBarModule, TimeBar, Score, Rating y FullCombo).
 	function allowedHUD():Bool
 	{
-		if (PlayState.instance == null)
-			return false;
-		var id = PlayState.instance.currentSong?.id.toLowerCase() ?? '';
-		return baseFNFSong() || ONLY_HUD_SONGS.contains(id);
+		return isAllowedStage();
+	}
+
+	public function lockIcon(icon):Void
+	{
+		if (icon != null && lockedIcons.indexOf(icon) == -1)
+			lockedIcons.push(icon);
+	}
+
+	public function unlockIcon(icon):Void
+	{
+		lockedIcons.remove(icon);
+	}
+
+	function isIconLocked(icon):Bool
+	{
+		return lockedIcons.indexOf(icon) != -1;
+	}
+
+	// Tamaño (en px) al que se dibuja un icono, respetando icon.size. Sirve para cualquier icono, tenga o no autoUpdate.
+	public function applyIconSize(icon, px:Float):Void
+	{
+		if (icon == null)
+			return;
+		var fw:Float = icon.frameWidth;
+		var fh:Float = icon.frameHeight;
+		if (fw <= 1 || fh <= 1)
+		{
+			fw = 150;
+			fh = 150;
+		}
+		var s:Float = (fw > fh) ? (px * icon.size.x) / fw : (px * icon.size.y) / fh;
+		icon.scale.set(s, s);
+		icon.updateHitbox();
+	}
+
+	// Y (relativa al borde superior del relleno) de la línea central de la curva en la columna localX.
+	function curveCenterOffset(localX:Float, flipped:Bool):Float
+	{
+		var t:Float = FlxMath.bound(localX, 0, CURVE_IMG_W - 1) / CURVE_STEP;
+		var i:Int = Std.int(t);
+		if (i > CURVE_CENTER.length - 2)
+			i = CURVE_CENTER.length - 2;
+		var f:Float = t - i;
+		var c:Float = CURVE_CENTER[i] + (CURVE_CENTER[i + 1] - CURVE_CENTER[i]) * f;
+		c = CURVE_MID + (c - CURVE_MID) * ICON_CURVE_FOLLOW;
+		return flipped ? (CURVE_IMG_H - 1 - c) : c;
+	}
+
+	// [edgeX, centerY]: x del borde rojo/verde y y de la línea central de la barra curva en ESE x.
+	function getBarEdge():Array<Float>
+	{
+		var bar = PlayState.instance.healthBar;
+		var mod = getBarModule();
+		if (mod != null && mod.built == true && mod.bg != null && mod.redBar != null)
+		{
+			var pct = FlxMath.bound(bar.percent, 0, 100);
+			var ex:Float = mod.redBar.x + mod.fillWidth * (1 - pct / 100);
+			return [ex, mod.redBar.y + curveCenterOffset(ex - mod.redBar.x, mod.redBar.flipY)];
+		}
+		return [bar.x + bar.width * (FlxMath.remapToRange(bar.value, 0, 2, 100, 0) * 0.01), bar.y + bar.height / 2];
+	}
+
+	// Posición "de casa" del icono (con su tamaño actual): [x, y].
+	public function getIconHome(icon, isPlayer:Bool):Array<Float>
+	{
+		var play = PlayState.instance;
+		if (play == null || play.healthBar == null || icon == null)
+			return [0.0, 0.0];
+		var edge = getBarEdge();
+		var x:Float = isPlayer ? (edge[0] - POSITION_OFFSET) : (edge[0] - (icon.width - POSITION_OFFSET));
+		var offY:Float = AmScroll.isDown() ? -ICON_Y_OFFSET : ICON_Y_OFFSET;
+		// Centro visual del icono = y + alto/2 - iconOffset.y  ->  se compensa para que caiga justo sobre la curva.
+		var y:Float = edge[1] + offY - (icon.height / 2);
+		if (ICON_IGNORE_OFFSET_Y)
+			y += icon.iconOffset.y;
+		return [x, y];
 	}
 
 	function isPixelNoteStyle():Bool
@@ -11046,7 +12701,7 @@ class AnimaniaModule extends Module
 	override function onSongEvent(event)
 	{
 		super.onSongEvent(event);
-		if (PlayState.instance == null)
+		if (PlayState.instance == null || !isAllowedStage())
 			return;
 
 		var data = event.eventData;
@@ -11111,6 +12766,7 @@ class AnimaniaModule extends Module
 	{
 		super.onStateChangeEnd(event);
 		usingAmTakeUI = false;
+		lockedIcons = [];
 		curFocus = null;
 		curFocusOld = null;
 		bopP1 = 0;
@@ -11151,6 +12807,7 @@ class AnimaniaModule extends Module
 			icon.bopEvery = 0;
 			if (icon.bopTween != null)
 				icon.bopTween.cancel();
+			applyIconSize(icon, ICON_BASE_SIZE);
 		}
 	}
 
@@ -11186,7 +12843,7 @@ class AnimaniaModule extends Module
 		super.onUpdate(event);
 
 		var play = PlayState.instance;
-		if (play == null || play.isGamePaused)
+		if (play == null || play.isGamePaused || !isAllowedStage())
 			return;
 
 		if (!play.isSongEnd && !play.isPlayerDying)
@@ -11211,30 +12868,16 @@ class AnimaniaModule extends Module
 	{
 		var play = PlayState.instance;
 		var bar = play.healthBar;
-		var downscroll:Bool = AmScroll.isDown();
 
-		var edgeX:Float;
-		var centerY:Float;
-		var mod = getBarModule();
-		if (mod != null && mod.built == true && mod.bg != null && mod.redBar != null)
-		{
-			var pct = FlxMath.bound(bar.percent, 0, 100);
-			edgeX = mod.redBar.x + mod.fillWidth * (1 - pct / 100);
-			centerY = mod.bg.y + mod.bg.height / 2;
-		}
-		else
-		{
-			edgeX = bar.x + bar.width * (FlxMath.remapToRange(bar.value, 0, 2, 100, 0) * 0.01);
-			centerY = bar.y + bar.height / 2;
-		}
-		var wave = FlxMath.fastCos((play.health - 1) * 2) * 15;
 		var lerpHealth = bar.value;
 		var bopDuration:Float = Math.max(Math.min(Conductor.instance.stepLengthMs * 0.002, 0.175), 0.01);
 
 		for (i in 0...2)
 		{
 			var icon = (i == 0) ? play.iconP1 : play.iconP2;
-			if (icon == null || !icon.autoUpdate)
+			// OJO: ya no se descarta por autoUpdate. Los iconos animados de AnimaniaStuff tienen autoUpdate = false
+			// y antes nadie les ponía el tamaño. Solo se saltan los que otro script bloqueó a mano.
+			if (icon == null || isIconLocked(icon))
 				continue;
 
 			var bop:Float = (i == 0) ? bopP1 : bopP2;
@@ -11245,31 +12888,23 @@ class AnimaniaModule extends Module
 			else
 				bopP2 = bop;
 
-			var fw:Float = Math.max(icon.frameWidth, 1);
-			var fh:Float = Math.max(icon.frameHeight, 1);
-			var mult:Float = 1 + ICON_BOP_SCALE * bop;
-			var s:Float = (fw > fh) ? (ICON_BASE_SIZE * icon.size.x * mult) / fw : (ICON_BASE_SIZE * icon.size.y * mult) / fh;
-			icon.scale.set(s, s);
-			icon.updateHitbox();
+			applyIconSize(icon, ICON_BASE_SIZE * (1 + ICON_BOP_SCALE * bop));
+
+			var home = getIconHome(icon, i == 0);
+			icon.x = home[0];
+			icon.y = home[1];
 
 			var targetAngle:Float = 0;
 			if (i == 0)
 			{
-				icon.x = edgeX - POSITION_OFFSET;
 				if (lerpHealth < .25)
 					targetAngle = 50 * (.25 - lerpHealth);
 			}
 			else
 			{
-				icon.x = edgeX - (icon.width - POSITION_OFFSET);
 				if (lerpHealth > 1.75)
 					targetAngle = -30 * (lerpHealth - 1.75);
 			}
-
-			if (downscroll)
-				icon.y = centerY - (icon.height / 2) + 20 - wave;
-			else
-				icon.y = centerY - (icon.height / 2) - 10 + wave;
 
 			if (targetAngle != 0)
 				icon.angle = targetAngle;
@@ -11291,7 +12926,7 @@ class AnimaniaModule extends Module
 		for (i in 0...2)
 		{
 			var icon = (i == 0) ? play.iconP1 : play.iconP2;
-			if (icon == null || !icon.autoUpdate)
+			if (icon == null || isIconLocked(icon))
 				continue;
 			if (Reflect.field(icon, "shouldBop") == false)
 				continue;
@@ -11308,7 +12943,7 @@ class AnimaniaModule extends Module
 		super.onNoteHit(event);
 
 		var play = PlayState.instance;
-		if (play == null || play.isMinimalMode)
+		if (play == null || play.isMinimalMode || !isAllowedStage())
 			return;
 
 		#if FEATURE_CHART_EDITOR
@@ -11389,6 +13024,40 @@ class AnimaniaStuff extends Module
 
 	var amTakeIcons:Array<Dynamic> = [];
 
+	public static var MEGA_ALLOWED_STAGES:Array<String> = [
+		"mainStageAmTake",
+		"serviceEnterance",
+		"xMasCityMallAmTake",
+		"xMasCityMallAmTakeDark",
+		"xMasCityMallNastyAmTake",
+		"phoneCallStreet"
+	];
+
+	public function isAllowedStage():Bool
+	{
+		var play = PlayState.instance;
+		if (play == null || play.currentStage == null) return false;
+		return MEGA_ALLOWED_STAGES.indexOf(play.currentStage.id) != -1;
+	}
+
+	// true si AnimaniaModule ya está colocando y dimensionando los iconos (así no se pelean por la posición).
+	function amHudActive():Bool
+	{
+		var am = ModuleHandler.getModule("AnimaniaModule");
+		if (am == null)
+			return false;
+		var active:Bool = false;
+		try
+		{
+			active = am.scriptGet("usingAmTakeUI") == true;
+		}
+		catch (e:Dynamic)
+		{
+			active = false;
+		}
+		return active;
+	}
+
 	function new()
 	{
 		super("AnimaniaStuff", 14);
@@ -11434,12 +13103,14 @@ class AnimaniaStuff extends Module
 
 	function onCountdownStep(event:CountdownScriptEvent):Void
 	{
+		if (!isAllowedStage()) return;
 		hideNativeCountdownSprite(event.step);
 		showCountdownGraphic(event.step);
 	}
 
 	function onCountdownEnd(event:CountdownScriptEvent):Void
 	{
+		if (!isAllowedStage()) return;
 		showCountdownGraphic(event.step);
 	}
 
@@ -11593,6 +13264,8 @@ class AnimaniaStuff extends Module
 
 	function makeAmTakeIcon(ic:HealthIcon):HealthIcon
 	{
+		if (!isAllowedStage()) return ic;
+
 		var icon = ic;
 		icon.autoUpdate = false;
 
@@ -11607,6 +13280,8 @@ class AnimaniaStuff extends Module
 
 	function makeAmTakeAnimatedIcon(ic:HealthIcon, ?isPlayer:Bool = false, ?customOffsets:Dynamic = null):HealthIcon
 	{
+		if (!isAllowedStage()) return ic;
+
 		var icon = ic;
 		icon.autoUpdate = false;
 
@@ -11686,9 +13361,12 @@ class AnimaniaStuff extends Module
 	function onUpdate(event:UpdateScriptEvent):Void
 	{
 		if (amTakeIcons.length == 0) return;
+		if (!isAllowedStage()) return;
 
 		var state = PlayState.instance;
 		if (state == null || state.healthBar == null) return;
+
+		var amPositions:Bool = amHudActive();
 
 		for (entry in amTakeIcons.copy())
 		{
@@ -11705,7 +13383,7 @@ class AnimaniaStuff extends Module
 			else updateStaticIconState(icon, health);
 
 			if (entry.animated) applyAnimatedIconOffsets(entry);
-			updateAmTakeIconPosition(icon, entry.isPlayer);
+			if (!amPositions) updateAmTakeIconPosition(icon, entry.isPlayer);
 		}
 	}
 
@@ -12363,6 +14041,7 @@ class RatingComboModule extends Module implements IPlayStateScriptedClass
   {
     return switch (stageId)
     {
+	  case "serviceEnterance": 20;
       case "xMasCityMallNastyAmTake": 118;
       default: null;
     }
@@ -14222,3 +15901,25 @@ class SoloTimeNoteStylePrecache extends Module
 		FunkinMemory.cacheNoteStyle(NoteStyleRegistry.instance.fetchEntry('solotime'));
 	}
 }
+
+#if !mobile
+class MoveStrumlinesAmTake extends Module
+{
+	function new()
+	{
+		super('MoveStrumlineAmTake');
+	}
+
+	override function onCountdownStart(event:CountdownScriptEvent):Void
+	{
+		if (!ModuleHandler.getModule('AnimaniaStuff').isAllowedStage()) return;
+
+		super.onCountdownStart(event);
+		var playerStrumline = PlayState.instance.playerStrumline;
+		var opponentStrumline = PlayState.instance.opponentStrumline;
+
+		playerStrumline.x += 55;
+		opponentStrumline.x += 40;
+	}
+}
+#end

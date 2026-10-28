@@ -10,7 +10,7 @@
 	"cameraOffsets": [0, 0],
 	"healthIcon": {
 		"id": "monster-boss",
-		"scale": 0.9,
+		"scale": 1,
 		"offsets" : [-10, -10]
 	},
 	"animations": [

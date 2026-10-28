@@ -5,8 +5,8 @@
 	"healthIcon": {
 		"id": "dad-amtake",
 		"flipX": false,
-		"scale": 0.8,
-		"offsets": [20, 0]
+		"scale": 1.1,
+		"offsets": [-10, -20]
 	},
 	"assetPath": "shared:characters/amtake/dad/BEAST_DEAREST",
 	"version": "1.0.0",

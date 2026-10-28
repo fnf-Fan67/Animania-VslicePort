@@ -18,6 +18,7 @@ import funkin.InitState;
 // funkin.modding package
 import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
+import funkin.modding.module.ScriptedModule;
 
 import funkin.modding.IPlayStateScriptedClass;
 
@@ -72,6 +73,7 @@ import funkin.play.character.MultiAnimateAtlasCharacter;
 import funkin.play.character.AnimateAtlasCharacter;
 import funkin.play.character.ScriptedMultiAnimateAtlasCharacter;
 import funkin.play.character.MultiSparrowCharacter;
+import funkin.play.character.ScriptedMultiSparrowCharacter;
 import funkin.play.character.BaseCharacter;
 import funkin.play.character.BaseCharacter.CharacterType;
 

@@ -11,8 +11,7 @@
 	"healthIcon": {
 		"id": "bf-amtake",
 		"flipX": true,
-		"scale": 0.8,
-		"offsets": [-10, -10]
+		"offsets" : [10, -10]
 	},
 	"renderType": "multianimateatlas",
 	"singTime": 6.0,

@@ -29,6 +29,7 @@ import funkin.ui.debug.DebugMenuSubState;
 import funkin.ui.FullScreenScaleMode;
 import funkin.util.TouchUtil;
 import funkin.modding.module.ModuleHandler;
+import openfl.filters.BlurFilter;
 
 /**
  * Nuevo menú principal (WIP).
@@ -47,6 +48,9 @@ import funkin.modding.module.ModuleHandler;
  *  8. Intro: 2 barras negras inclinadas con el mismo ángulo que la cámara (INTRO_ANGLE, encima de todo) que cubren
  *     la pantalla; luego se abren hasta dejar una franja en cada borde y cámara + barras vuelven a 0°.
  *     La cámara empieza con zoom INTRO_ZOOM y va volviendo a 1.0 mientras dura la apertura.
+ *  10. Selección de modo (al pulsar Story): dos bloques (AM Take = StoryMenuState vanilla, Animania = StoryMenuCustom)
+ *     sobre una cámara propia (selectCam, entre el menú y las barras), con el menú de fondo oscurecido y con blur.
+ *     BACK (o el BackButton en móvil) la cierra y devuelve al menú; al elegir un bloque se hace el outro y se cambia de state.
  *  9. Outro: lo inverso. Las barras se cierran, la cámara gira a OUTRO_ANGLE (positivo) y se acerca a OUTRO_ZOOM.
  *     Se usa en todos los botones (menos Freeplay) y al volver al título (BACK / Exit).
  */
@@ -244,6 +248,26 @@ class NewMainMenuState extends MusicBeatState
   var OUTRO_ZOOM:Float = 1.35;         // zoom final de la cámara
   var OUTRO_DURATION:Float = 1.0;      // segundos que tardan en cerrarse las barras
 
+  // ---- Selección de modo al pulsar Story ----
+  // Atlas: assets/images/newmenu/story_select_buttons.png/.xml  (frames "amtake basic/white" y "animania basic/white").
+  //   basic = reposo, white = hover (un poco más grande, se centra sobre el mismo punto).
+  // El hover/click sigue la forma real del bloque (paralelogramo), no su caja.
+  var SELECT_ATLAS:String = 'story_select_buttons';
+  var SELECT_SCALE:Float = 0.94;         // escala de los bloques (el frame mide ~623x670; 0.94 = como la captura de referencia)
+  var SELECT_LEFT_DX:Float = -292;       // centro del bloque izquierdo respecto al centro de la pantalla (px)
+  var SELECT_RIGHT_DX:Float = 298;       // idem del bloque derecho
+  var SELECT_DY:Float = 0;               // desplazamiento vertical de ambos (+ = abajo)
+  var SELECT_DIM_ALPHA:Float = 0.6;      // oscurecimiento del menú de fondo
+  var SELECT_BLUR:Float = 6;             // blur del menú de fondo (0 = sin blur)
+  var SELECT_ANIM_TIME:Float = 0.3;      // segundos que tarda en abrirse / cerrarse
+  var SELECT_SLIDE:Float = 70;           // px que entran deslizando cada bloque (desde su lado)
+  var SELECT_CONFIRM_WAIT:Float = 0.45;  // segundos que se ve el bloque elegido antes del outro
+  var SELECT_OTHER_ALPHA:Float = 0.35;   // opacidad del bloque NO elegido
+  // Geometría de cada bloque en el frame "basic" (sin escalar): esquinas superior/inferior de los bordes izquierdo y derecho.
+  var SELECT_AMTAKE_SHAPE:Array<Float> = [4, 4, 622, 521];     // topL, botL, topR, botR
+  var SELECT_ANIMANIA_SHAPE:Array<Float> = [101, 1, 618, 618];
+  var SELECT_SHAPE_H:Float = 668;        // alto útil del frame basic
+
   // ---- Touch (solo móviles) ----
   var BACK_BUTTON_X:Float = 10;      // posición del BackButton (esquina superior izquierda)
   var BACK_BUTTON_Y:Float = 10;
@@ -264,6 +288,17 @@ class NewMainMenuState extends MusicBeatState
 
   var emitters:Array<Dynamic> = [];
   var particleTime:Float = 0;
+
+  // Selección de modo (Story)
+  var selectCam:FlxCamera = null;
+  var selectDim:FlxSprite = null;
+  var selectPanels:Array<Dynamic> = [];
+  var selectOpen:Bool = false;       // la pantalla de selección está visible (abriéndose, abierta o cerrándose)
+  var selectClosing:Bool = false;
+  var selectChosen:Bool = false;     // ya se eligió un bloque (espera el outro)
+  var selectT:Float = 0;             // 0 = cerrada, 1 = abierta
+  var selectTouchPanel:Dynamic = null;
+  var storyBtn:Dynamic = null;
 
   // Intro
   var introCam:FlxCamera;
@@ -338,6 +373,9 @@ class NewMainMenuState extends MusicBeatState
     buildButtons();
     // Las hojas van al final: quedan por encima de todo lo anterior.
     emitters.push(createEmitter(LEAF_CFG, PARALLAX_LEAVES));
+
+    // La selección de modo usa su propia cámara: se crea ANTES que la de la intro para que las barras queden por encima.
+    buildStorySelect();
 
     // La intro va al final de todo (su cámara se dibuja encima de las demás).
     buildIntro(returningFromSubMenu && INTRO_SKIP_ON_RETURN);
@@ -852,13 +890,9 @@ class NewMainMenuState extends MusicBeatState
   {
     addLockedButton('shop', 'shop', SHOP_X, SHOP_Y, SHOP_BOUNDS);
 
-    addMenuButton('story', 'storymode', STORY_X, STORY_Y, STORY_BOUNDS, function() {
-      FlxG.signals.preStateSwitch.addOnce(function() {
-        FunkinMemory.clearFreeplay();
-        FunkinMemory.purgeCache();
-      });
-      FlxG.switchState(new StoryMenuCustom());
-    });
+    // Story ya no entra directo: tras la animación "confirm" abre la selección de modo (sin outro; el outro se hace al elegir).
+    storyBtn = addMenuButton('story', 'storymode', STORY_X, STORY_Y, STORY_BOUNDS, openStorySelect);
+    storyBtn.outro = false;
 
     var freeplayBtn:Dynamic = addMenuButton('freeplay', 'freeplay', FREEPLAY_X, FREEPLAY_Y, FREEPLAY_BOUNDS, openFreeplay);
     freeplayBtn.outro = false; // Freeplay se abre como substate con su propia transición: sin outro
@@ -1133,6 +1167,368 @@ class NewMainMenuState extends MusicBeatState
       FlxG.state.openSubState(new DebugMenuSubState());
     }
     #end
+  }
+
+  // ---------------------------------------------------------------------------
+  // SELECCIÓN DE MODO (Story): AM Take = StoryMenuState vanilla | Animania = StoryMenuCustom
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Crea (oculto) todo lo de la selección: cámara propia, capa oscura y los 2 bloques (basic + white cada uno).
+   * La cámara va entre el menú y las barras de la intro/outro. Los bloques son sprites estáticos (basic y white por separado,
+   * se alterna la visibilidad) para que el cambio de tamaño entre frames no haga saltar nada.
+   */
+  function buildStorySelect():Void
+  {
+    selectCam = new FlxCamera();
+    selectCam.bgColor = 0x00000000; // transparente
+    FlxG.cameras.add(selectCam, false);
+
+    // La capa oscura es mucho más grande que la pantalla: sigue cubriéndola aunque la cámara gire/haga zoom en el outro.
+    selectDim = new FlxSprite().makeGraphic(Std.int(FlxG.width * 3), Std.int(FlxG.height * 3), FlxColor.BLACK);
+    selectDim.x = -FlxG.width;
+    selectDim.y = -FlxG.height;
+    selectDim.scrollFactor.set(0, 0);
+    selectDim.cameras = [selectCam];
+    selectDim.alpha = 0;
+    selectDim.visible = false;
+    add(selectDim);
+
+    var atlas = Paths.getSparrowAtlas(SELECT_ATLAS);
+    var cy:Float = FlxG.height / 2 + SELECT_DY;
+
+    var leftBasic:FlxSprite = makeSelectSprite(atlas, 'amtake basic', FlxG.width / 2 + SELECT_LEFT_DX, cy);
+    var rightBasic:FlxSprite = makeSelectSprite(atlas, 'animania basic', FlxG.width / 2 + SELECT_RIGHT_DX, cy);
+    // Los white van después: al hacer hover quedan por encima del vecino (crecen ~2%).
+    var leftWhite:FlxSprite = makeSelectSprite(atlas, 'amtake white', FlxG.width / 2 + SELECT_LEFT_DX, cy);
+    var rightWhite:FlxSprite = makeSelectSprite(atlas, 'animania white', FlxG.width / 2 + SELECT_RIGHT_DX, cy);
+
+    selectPanels = [];
+    selectPanels.push({
+      id: 'amtake',
+      basic: leftBasic,
+      white: leftWhite,
+      bx: leftBasic.x, by: leftBasic.y,
+      wx: leftWhite.x, wy: leftWhite.y,
+      shape: SELECT_AMTAKE_SHAPE,
+      slideDir: -1,
+      hovered: false,
+      onConfirm: function() {
+        // AM Take -> StoryMenuState vanilla del juego.
+        setStoryRedirect(true);
+        FlxG.signals.preStateSwitch.addOnce(function() {
+          FunkinMemory.clearFreeplay();
+          FunkinMemory.purgeCache();
+        });
+        FlxG.switchState(new StoryMenuState());
+      }
+    });
+    selectPanels.push({
+      id: 'animania',
+      basic: rightBasic,
+      white: rightWhite,
+      bx: rightBasic.x, by: rightBasic.y,
+      wx: rightWhite.x, wy: rightWhite.y,
+      shape: SELECT_ANIMANIA_SHAPE,
+      slideDir: 1,
+      hovered: false,
+      onConfirm: function() {
+        // Animania -> tu StoryMenuCustom.
+        setStoryRedirect(false);
+        FlxG.signals.preStateSwitch.addOnce(function() {
+          FunkinMemory.clearFreeplay();
+          FunkinMemory.purgeCache();
+        });
+        FlxG.switchState(new StoryMenuCustom());
+      }
+    });
+  }
+
+  /** Un frame del atlas como sprite estático, escalado y centrado en (cx, cy). Empieza oculto. */
+  function makeSelectSprite(atlas:Dynamic, prefix:String, cx:Float, cy:Float):FlxSprite
+  {
+    var spr:FlxSprite = new FlxSprite();
+    spr.frames = atlas;
+    spr.animation.addByPrefix('f', prefix, 24, false);
+    spr.animation.play('f');
+    spr.antialiasing = true;
+    spr.scrollFactor.set(0, 0);
+    spr.cameras = [selectCam];
+    spr.scale.set(SELECT_SCALE, SELECT_SCALE);
+    spr.updateHitbox();
+    spr.x = cx - spr.width / 2;
+    spr.y = cy - spr.height / 2;
+    spr.alpha = 0;
+    spr.visible = false;
+    add(spr);
+    return spr;
+  }
+
+  /**
+   * Le dice al módulo StoryMenuStickerRedirect a qué Story vamos: vanilla = true deja que el regreso de una week
+   * (ResultState / GameOver / Pause) vuelva al StoryMenuState original; false = lo redirige a StoryMenuCustom (como antes).
+   */
+  function setStoryRedirect(vanilla:Bool):Void
+  {
+    var m:Dynamic = ModuleHandler.getModule('storyMenuStickerRedirect');
+    if (m != null) m.setUseVanilla(vanilla);
+  }
+
+  /** Acción del botón Story (tras su animación "confirm"): abre la selección. `busy` ya está en true desde confirmButton. */
+  function openStorySelect():Void
+  {
+    if (selectOpen) return;
+
+    selectOpen = true;
+    selectClosing = false;
+    selectChosen = false;
+    selectT = 0;
+    selectTouchPanel = null;
+
+    selectDim.visible = true;
+    for (p in selectPanels)
+    {
+      p.hovered = false;
+      p.basic.visible = true;
+      p.white.visible = false;
+    }
+
+    applySelectAnim();
+  }
+
+  /** Cierra la selección y devuelve el control al menú (BACK / BackButton). */
+  function closeStorySelect():Void
+  {
+    if (!selectOpen || selectClosing || selectChosen) return;
+
+    selectClosing = true;
+    selectTouchPanel = null;
+    FunkinSound.playOnce(Paths.sound('cancelMenu'));
+    Cursor.cursorMode = CursorMode.Default;
+  }
+
+  function finishCloseStorySelect():Void
+  {
+    selectOpen = false;
+    selectClosing = false;
+    selectT = 0;
+
+    selectDim.visible = false;
+    for (p in selectPanels)
+    {
+      p.hovered = false;
+      p.basic.visible = false;
+      p.white.visible = false;
+    }
+    setSelectBlur(0);
+
+    // Devuelve el menú a como estaba: botón Story en reposo y entrada habilitada.
+    busy = false;
+    if (storyBtn != null)
+    {
+      storyBtn.hovered = false;
+      playBtn(storyBtn, 'idle');
+    }
+    if (FlxG.onMobile && backButton != null) backButton.enabled = true;
+  }
+
+  /** Pone la animación de apertura/cierre según selectT (0..1): capa oscura, deslizamiento + fundido de los bloques y blur. */
+  function applySelectAnim():Void
+  {
+    var e:Float = FlxEase.cubeOut(selectT);
+
+    selectDim.alpha = SELECT_DIM_ALPHA * e;
+
+    for (p in selectPanels)
+    {
+      var dx:Float = p.slideDir * SELECT_SLIDE * (1 - e);
+      p.basic.x = p.bx + dx;
+      p.white.x = p.wx + dx;
+
+      // El bloque no elegido se queda atenuado: no se le pisa el alpha una vez elegido.
+      if (selectChosen && !p.hovered) continue;
+      p.basic.alpha = e;
+      p.white.alpha = e;
+    }
+
+    setSelectBlur(SELECT_BLUR * e);
+  }
+
+  /** Blur del menú de fondo (solo la cámara principal: los bloques van en otra cámara y quedan nítidos). */
+  function setSelectBlur(amount:Float):Void
+  {
+    if (SELECT_BLUR <= 0 || amount < 0.05)
+    {
+      FlxG.camera.filters = [];
+      return;
+    }
+    FlxG.camera.filters = [new BlurFilter(amount, amount, 1)];
+  }
+
+  /** ¿El punto (mx, my) (coordenadas de selectCam) está dentro de la silueta del bloque? Interpola los bordes inclinados. */
+  function panelContains(p:Dynamic, mx:Float, my:Float):Bool
+  {
+    var lx:Float = (mx - p.bx) / SELECT_SCALE;
+    var ly:Float = (my - p.by) / SELECT_SCALE;
+
+    if (ly < 0 || ly > SELECT_SHAPE_H) return false;
+
+    var t:Float = ly / SELECT_SHAPE_H;
+    var shape:Array<Float> = p.shape;
+    var minX:Float = shape[0] + (shape[1] - shape[0]) * t;
+    var maxX:Float = shape[2] + (shape[3] - shape[2]) * t;
+    return lx >= minX && lx <= maxX;
+  }
+
+  /** Hover = se muestra el frame white. */
+  function setPanelHover(p:Dynamic, over:Bool, withSound:Bool):Void
+  {
+    if (p.hovered == over) return;
+
+    p.hovered = over;
+    p.basic.visible = !over;
+    p.white.visible = over;
+
+    if (over && withSound) FunkinSound.playOnce(Paths.sound('scrollMenu'));
+  }
+
+  /** Se eligió un bloque: sonido + el otro se atenúa + (tras SELECT_CONFIRM_WAIT) outro y cambio de state. */
+  function confirmStoryPanel(p:Dynamic):Void
+  {
+    if (selectChosen || selectClosing) return;
+
+    selectChosen = true;
+    selectTouchPanel = null;
+    Cursor.cursorMode = CursorMode.Default;
+
+    if (FlxG.onMobile && backButton != null) backButton.enabled = false;
+
+    FunkinSound.playOnce(Paths.sound('confirmMenu'));
+    setPanelHover(p, true, false);
+
+    for (o in selectPanels)
+    {
+      if (o == p) continue;
+      setPanelHover(o, false, false);
+      o.basic.alpha = SELECT_OTHER_ALPHA;
+      o.white.alpha = SELECT_OTHER_ALPHA;
+    }
+
+    var action:Dynamic = p.onConfirm;
+    new FlxTimer().start(SELECT_CONFIRM_WAIT, function(_) {
+      playOutro(action);
+    });
+  }
+
+  function updateStorySelect(elapsed:Float):Void
+  {
+    if (!selectOpen) return;
+
+    // Apertura / cierre a mano (sin FlxTween).
+    var target:Float = selectClosing ? 0.0 : 1.0;
+    if (selectT != target)
+    {
+      var step:Float = Math.min(elapsed, 0.05) / SELECT_ANIM_TIME;
+      if (selectT < target) selectT = Math.min(selectT + step, target);
+      else selectT = Math.max(selectT - step, target);
+
+      applySelectAnim();
+
+      if (selectClosing && selectT <= 0)
+      {
+        finishCloseStorySelect();
+        return;
+      }
+    }
+
+    // Sin input mientras se abre/cierra, tras elegir o durante el outro.
+    if (selectT < 1 || selectClosing || selectChosen || outroStarted) return;
+
+    // Móvil: BackButton visible y activo mientras la selección está abierta (busy está en true y el update normal no lo toca).
+    if (FlxG.onMobile && backButton != null)
+    {
+      backButton.visible = true;
+      backButton.enabled = true;
+    }
+
+    if (FlxG.onMobile)
+    {
+      updateSelectTouch();
+      return;
+    }
+
+    var p = FlxG.mouse.getWorldPosition(selectCam);
+    var mx:Float = p.x;
+    var my:Float = p.y;
+    p.put();
+
+    var anyOver:Bool = false;
+    var clicked:Dynamic = null;
+
+    for (pn in selectPanels)
+    {
+      var over:Bool = panelContains(pn, mx, my);
+      // Solo uno a la vez (la silueta de uno nunca toca la del otro, pero por si se solapan al crecer).
+      if (over && anyOver) over = false;
+      if (over) anyOver = true;
+
+      setPanelHover(pn, over, true);
+
+      if (over && FlxG.mouse.justPressed) clicked = pn;
+    }
+
+    Cursor.cursorMode = anyOver ? CursorMode.Pointer : CursorMode.Default;
+
+    if (clicked != null) confirmStoryPanel(clicked);
+  }
+
+  /** (móvil) Apoyar el dedo en un bloque = hover; soltar sobre él = elegir; soltar fuera lo cancela. */
+  function updateSelectTouch():Void
+  {
+    var justPressed:Bool = TouchUtil.justPressed;
+    var justReleased:Bool = TouchUtil.justReleased;
+    var pressed:Bool = TouchUtil.pressed;
+
+    var t = TouchUtil.touch;
+    var over:Bool = false;
+    var hit:Dynamic = null;
+
+    if (t != null)
+    {
+      var p = t.getWorldPosition(selectCam);
+      for (pn in selectPanels)
+      {
+        if (panelContains(pn, p.x, p.y))
+        {
+          hit = pn;
+          break;
+        }
+      }
+      p.put();
+    }
+
+    if (justPressed && selectTouchPanel == null && hit != null)
+    {
+      selectTouchPanel = hit;
+      setPanelHover(hit, true, true);
+      return;
+    }
+
+    if (selectTouchPanel == null) return;
+
+    over = (hit == selectTouchPanel);
+
+    if (justReleased || !pressed)
+    {
+      var tapped:Dynamic = selectTouchPanel;
+      selectTouchPanel = null;
+
+      if (over && justReleased) confirmStoryPanel(tapped);
+      else setPanelHover(tapped, false, false);
+      return;
+    }
+
+    setPanelHover(selectTouchPanel, over, false);
   }
 
   /**
@@ -1458,6 +1854,13 @@ class NewMainMenuState extends MusicBeatState
     bopAdd = bopAdd * Math.exp(-BOP_DECAY * elapsed);
     FlxG.camera.zoom = (1.0 + bopAdd) * transZoom;
 
+    // La cámara de la selección sigue el giro/zoom del outro (sin el bop) para que los bloques salgan igual que el resto.
+    if (selectOpen && selectCam != null)
+    {
+      selectCam.angle = FlxG.camera.angle;
+      selectCam.zoom = transZoom;
+    }
+
     // (móvil) el BackButton no se muestra ni responde mientras corre la intro.
     if (FlxG.onMobile && backButton != null && !busy)
     {
@@ -1470,15 +1873,25 @@ class NewMainMenuState extends MusicBeatState
     updateOst(elapsed);
     updateSocial(elapsed);
     updateSocialClicks(elapsed);
+    updateStorySelect(elapsed);
 
     particleTime += elapsed;
     for (e in emitters) updateEmitter(e, elapsed);
 
     if (!busy && !introPlaying && !outroStarted && PlayerSettings.player1.controls.BACK_P) goBack();
+    // Con la selección de modo abierta, BACK la cierra (busy está en true, por eso va aparte).
+    else if (selectOpen && !selectClosing && !selectChosen && !outroStarted && PlayerSettings.player1.controls.BACK_P) closeStorySelect();
   }
 
   function goBack():Void
   {
+    // Con la selección de modo abierta, BACK / BackButton solo la cierra (no sale al título).
+    if (selectOpen)
+    {
+      closeStorySelect();
+      return;
+    }
+
     if (outroStarted) return; // ya se está saliendo
 
     FunkinSound.playOnce(Paths.sound('cancelMenu'));

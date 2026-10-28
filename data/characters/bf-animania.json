@@ -9,7 +9,11 @@
 	"healthIcon": {
 		"id": "bf-amtake",
 		"flipX": true,
-		"scale": 0.9
+		"scale": 1,
+		"offsets": [
+			10,
+			-10
+		]
 	},
 	"assetPath": "shared:characters/amtake/bf/bf-classic",
 	"version": "1.0.0",

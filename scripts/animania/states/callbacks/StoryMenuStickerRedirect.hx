@@ -15,11 +15,18 @@ import Reflect;
  *    StoryMenuState original, se devuelve StoryMenuCustom (con el mismo sticker). Cualquier
  *    otro destino (Freeplay, etc.) queda igual.
  *
+ * NewMainMenuState le avisa (setUseVanilla) de qué Story se eligió en la pantalla de selección:
+ *  - useVanilla = true  (bloque AM Take): NO se redirige nada, la week vuelve al StoryMenuState vanilla.
+ *  - useVanilla = false (bloque Animania): se redirige a StoryMenuCustom, como siempre.
+ *
  * Va en  scripts/  junto a StoryMenuCustom.hxc.
  */
 class StoryMenuStickerRedirect extends Module
 {
   var CUSTOM_MENU_CLASS:String = 'StoryMenuCustom';
+
+  // true = se eligió el Story vanilla en la selección de modo: no se toca el destino de los stickers.
+  var useVanilla:Bool = false;
 
   // Stickers ya envueltos (para no envolver dos veces el mismo).
   var patched:Array<Dynamic> = [];
@@ -29,8 +36,16 @@ class StoryMenuStickerRedirect extends Module
     super('storyMenuStickerRedirect', 1);
   }
 
+  /** Lo llama NewMainMenuState al elegir un bloque (true = StoryMenuState vanilla, false = StoryMenuCustom). */
+  public function setUseVanilla(value:Bool):Void
+  {
+    useVanilla = value;
+  }
+
   public override function onSubStateOpenBegin(event:ScriptEvent):Void
   {
+    if (useVanilla) return;
+
     var sub:Dynamic = event.targetState;
     if (sub == null) return;
 

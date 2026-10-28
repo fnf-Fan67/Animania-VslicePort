@@ -561,6 +561,7 @@ class NewLoadingState extends MusicBeatState
       onComplete: function(twn) {
         stopLoadingMusic();
         var playParams = launch;
+        if (playParams != null) launch.targetSong.cacheCharts(true);
         FlxG.switchState(function() {
           return new PlayState(playParams);
         });

@@ -72,6 +72,7 @@
     },
     "noteSplash": {
       "assetPath": "shared:ui/notes/amtake_xmas/noteSplashes",
+      "alpha": 0.7,
       "data": {
         "enabled": true,
         "leftSplashes": [

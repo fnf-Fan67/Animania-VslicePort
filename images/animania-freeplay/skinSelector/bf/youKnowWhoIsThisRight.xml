@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextureAtlas imagePath="him">
+	<!-- NaN -->
+	<!-- NaN -->
+	<SubTexture name="skin switch0000" x="1071" y="1474" width="454" height="439" frameX="-121" frameY="-13" frameWidth="659" frameHeight="452" rotated="false"/>
+	<SubTexture name="skin switch0001" x="1094" y="1" width="391" height="431" frameX="-132" frameY="-18" frameWidth="659" frameHeight="452" rotated="false"/>
+	<SubTexture name="skin switch0002" x="434" y="1529" width="431" height="393" frameX="-131" frameY="-16" frameWidth="659" frameHeight="452" rotated="true"/>
+	<SubTexture name="skin switch0003" x="650" y="380" width="443" height="560" frameX="-36" frameY="-8" frameWidth="659" frameHeight="452" rotated="true"/>
+	<SubTexture name="skin switch0004" x="1094" y="433" width="389" height="427" frameX="-136" frameY="-22" frameWidth="659" frameHeight="452" rotated="false"/>
+	<SubTexture name="skin switch0005" x="1" y="1590" width="424" height="388" frameX="-138" frameY="-25" frameWidth="659" frameHeight="452" rotated="true"/>
+	<SubTexture name="skin switch0006" x="1071" y="941" width="452" height="532" frameX="-67" frameY="0" frameWidth="659" frameHeight="452" rotated="true"/>
+	<SubTexture name="skin switch0007" x="1" y="1031" width="432" height="558" frameX="-47" frameY="-14" frameWidth="659" frameHeight="452" rotated="true"/>
+	<SubTexture name="skin switch0008" x="650" y="941" width="420" height="587" frameX="-32" frameY="-20" frameWidth="659" frameHeight="452" rotated="true"/>
+	<SubTexture name="skin switch0009" x="1" y="1" width="392" height="643" frameX="-13" frameY="-21" frameWidth="659" frameHeight="452" rotated="true"/>
+	<SubTexture name="skin switch0010" x="1" y="645" width="648" height="385" frameX="-8" frameY="-25" frameWidth="659" frameHeight="452" rotated="false"/>
+	<SubTexture name="skin switch0011" x="394" y="1" width="659" height="378" frameX="0" frameY="-31" frameWidth="659" frameHeight="452" rotated="false"/>
+	<SubTexture name="skin switch0012" x="1" y="1" width="1" height="1" frameX="-113" frameY="-22" frameWidth="659" frameHeight="452" rotated="false"/>
+</TextureAtlas>

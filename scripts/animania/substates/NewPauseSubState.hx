@@ -379,8 +379,6 @@ class NewPauseSubState extends MusicBeatSubState
 
   public override function destroy():Void
   {
-    restoreCamerasInstant();
-
     FlxTween.cancelTweensOf(bg);
     FlxTween.cancelTweensOf(menuLeft);
     cancelButtonTweens();
@@ -417,26 +415,27 @@ class NewPauseSubState extends MusicBeatSubState
 
     startPauseMusic();
 
-    basePitch = music.pitch;
-    baseVolume = music.volume;
-    volumeTouched = true;
-    slowingDown = true;
+    if (FlxG.sound.music != null)
+    {
+      baseVolume = music.volume;
+      volumeTouched = true;
+      slowingDown = true;
+      music.resume();
 
-    music.resume();
+      fadeTween = FlxTween.num(baseVolume, 0, MUSIC_FADEOUT_TIME, {ease: FlxEase.quadInOut, onComplete: function(_) {
+        fadeTween = null;
+        cancelFade();
+      }}, function(v:Float) {
+        FlxG.sound.music.volume = v;
+      });
 
-    fadeTween = FlxTween.num(baseVolume, 0, MUSIC_FADEOUT_TIME, {ease: FlxEase.quadInOut, onComplete: function(_) {
-      fadeTween = null;
-      cancelFade();
-    }}, function(v:Float) {
-      if (FlxG.sound.music != null) FlxG.sound.music.volume = v;
-    });
-
-    pitchTween = FlxTween.num(basePitch, 0, MUSIC_FADEOUT_TIME, {ease: FlxEase.quadInOut, onComplete: function(_) {
-      pitchTween = null;
-      cancelFade();
-    }}, function(v:Float) {
-      if (FlxG.sound.music != null) FlxG.sound.music.pitch = v;
-    });
+      pitchTween = FlxTween.num(music.pitch, 0, MUSIC_FADEOUT_TIME, {ease: FlxEase.quadInOut, onComplete: function(_) {
+        pitchTween = null;
+        cancelFade();
+      }}, function(v:Float) {
+        FlxG.sound.music.pitch = 1;
+      });
+    }
   }
 
   function cancelFade():Void
@@ -1485,19 +1484,6 @@ class NewPauseSubState extends MusicBeatSubState
 
     FlxTween.tween(gameCam, {angle: gameAngle0 + TILT_ANGLE, zoom: gameZoom0 * ZOOM_MULT}, CAM_IN_TIME, {ease: FlxEase.quartOut});
     FlxTween.tween(hudCam, {angle: hudAngle0 + TILT_ANGLE, zoom: hudZoom0 * ZOOM_MULT}, CAM_IN_TIME, {ease: FlxEase.quartOut});
-  }
-
-  function restoreCamerasInstant():Void
-  {
-    if (camsRestored || gameCam == null) return;
-    camsRestored = true;
-
-    FlxTween.cancelTweensOf(gameCam);
-    FlxTween.cancelTweensOf(hudCam);
-    gameCam.angle = gameAngle0;
-    gameCam.zoom = gameZoom0;
-    hudCam.angle = hudAngle0;
-    hudCam.zoom = hudZoom0;
   }
 
   function refreshSelection():Void

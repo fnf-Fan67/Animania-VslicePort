@@ -8,8 +8,8 @@
 		"id": "dad-amtake",
 		"flipX": false,
 		"isPixel": false,
-		"offsets": [20, 0],
-		"scale": 0.7
+		"offsets": [-10, -20],
+		"scale": 0.9
 	},
 	"assetPath": "shared:characters/amtake/dad/daddyDearest1",
 	"version": "1.0.0",
