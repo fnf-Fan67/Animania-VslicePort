@@ -1,0 +1,63 @@
+{
+    "characters": {
+        "bf":   [
+            "bf-animania",
+            "bf-christmas-animania"
+        ],
+        "dad": [
+            "dad-animania",
+            "dad-beast"
+        ],
+        "gf": [
+            "gf-animania",
+            "gf-christmas-animania"
+        ],
+        "komi": [
+            "komi",
+            "komi-stand"
+        ],
+        "monster": "monster-plant",
+        "parents": "parents-christmas-animania",
+        "tadano": [
+            "tadano",
+            "tadano-stand"
+        ]
+    },
+    "colors": {
+        "bf":  {
+            "r": 49,
+            "g": 176,
+            "b": 209
+        },
+        "dad": {
+            "r": 175,
+            "g": 102,
+            "b": 206
+        },
+        "gf": {
+            "r": 255,
+            "g": 0,
+            "b": 0
+        },
+        "komi": {
+            "r": 121,
+            "g": 79,
+            "b": 146
+        },
+        "monster": {
+            "r": 243,
+            "g": 255,
+            "b": 110
+        },
+        "parents": {
+            "r": 210,
+            "g": 87,
+            "b": 167
+        },
+        "tadano": {
+            "r": 125,
+            "g": 110,
+            "b": 199
+        }
+    }
+}
