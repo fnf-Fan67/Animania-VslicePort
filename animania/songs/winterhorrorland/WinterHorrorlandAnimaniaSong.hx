@@ -75,10 +75,6 @@ class WinterHorrorlandAnimaniaSong extends Song
   var playedCutscene:Bool = false;
   var allowEnd:Bool = false;
 
-  // ---------------------------------------------------------------------------
-  // BATTLE MECHANIC (dodge / attack QTE) - ported from battle-mechanic.script
-  // Solo se activa en dificultad "hard", igual que el script original.
-  // ---------------------------------------------------------------------------
   var MECH_DIFFICULTY:String = "hard";
   var MECH_FINAL_PRE_WINDOW:Float = 0.65;
   var MECH_FINAL_POST_WINDOW:Float = 0.5;
@@ -161,6 +157,11 @@ class WinterHorrorlandAnimaniaSong extends Song
   {
     super.onCreate(event);
 
+    // FIX: la instancia del script se reutiliza entre partidas (freeplay -> story), así que
+    // seenCutscene/playedCutscene quedaban en true y la cutscene se salteaba. Antes el reset
+    // solo corría con shaders activados y DESPUÉS de createSnow(); ahora va siempre y primero.
+    resetRuntimeState();
+
     ps = PlayState.instance;
     if (ps == null) return;
 
@@ -169,7 +170,6 @@ class WinterHorrorlandAnimaniaSong extends Song
 	if (Save.instance.modOptions['shaders'])
 	{
 		createSnow();
-		resetRuntimeState();
 		setupChroma();
 	}
     styleSubtitles();
@@ -205,6 +205,9 @@ class WinterHorrorlandAnimaniaSong extends Song
   override function onDestroy(event:ScriptEvent):Void
   {
     super.onDestroy(event);
+
+    // RESET: dejar el estado limpio al salir para que la próxima partida (otro modo) empiece de cero
+    resetRuntimeState();
     ps = null;
   }
 
@@ -1628,6 +1631,10 @@ class WinterHorrorlandAnimaniaSong extends Song
     st.entry = mechTakeAmEntry(icon);
     mechLockModuleIcon(icon, true);
 
+    // Mientras la mecanica controla el icono, que muestre su animacion idle
+    // (AnimaniaStuff / HealthIcon ya no lo actualizan, asi que se quedaria congelado en winning/losing/death).
+    icon.playAnimation("idle", "idle", false);
+
     // Mientras la mecanica controla el icono se ignora su iconOffset, para que su CENTRO quede en el centro de la mira.
     icon.iconOffset.set(0, 0);
     icon.zIndex = 1800;
@@ -1644,7 +1651,18 @@ class WinterHorrorlandAnimaniaSong extends Song
     if (icon == null) return;
 
     icon.angle = 0;
-    icon.iconOffset.set(st.offX, st.offY);
+
+    // El icono vuelve en idle: si AnimaniaStuff lo maneja se parte del offset base y se le obliga a recalcular
+    // los offsets de la animacion actual (lastAnim = null), para que recupere su animacion con el offset correcto.
+    var restoreOffX = st.offX;
+    var restoreOffY = st.offY;
+    if (st.entry != null)
+    {
+      restoreOffX = st.entry.baseX;
+      restoreOffY = st.entry.baseY;
+      st.entry.lastAnim = null;
+    }
+    icon.iconOffset.set(restoreOffX, restoreOffY);
     FlxTween.cancelTweensOf(icon.scale);
     if (mechAmModule() != null) mechApplyIconSize(icon, mechNormalSize());
     else

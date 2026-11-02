@@ -7,18 +7,25 @@ class GirlfriendChristmasAnimaniaCharacter extends AnimateAtlasCharacter
 		super('gf-christmas-animania');
 	}
 
-	var fgSnow;
+	// FIX: ahora es public para que los stages puedan hacer gf.fgSnow sin error
+	// (en las clases de HScript las vars sin "public" son privadas)
+	public var fgSnow;
 
 	override function onCreate(event:ScriptEvent):Void
 	{
 		super.onCreate(event);
-		if (PlayState.instance.currentStage != null)
+
+		var stage = PlayState.instance.currentStage;
+		if (stage != null)
 		{
+			// por si el personaje se vuelve a crear, no duplicar la nieve
+			removeFgSnow();
+
 			fgSnow = FunkinSprite.create(this.x + 285, this.y + 600, "characters/amtake/gf/gf-snow");
-			PlayState.instance.currentStage.add(fgSnow);
+			stage.add(fgSnow);
 			fgSnow.zIndex = zIndex + 1;
 			fgSnow.shader = this.shader;
-			PlayState.instance.currentStage.refresh();
+			stage.refresh();
 		}
 	}
 
@@ -55,10 +62,33 @@ class GirlfriendChristmasAnimaniaCharacter extends AnimateAtlasCharacter
 	{
 		super.onUpdate(e);
 
-		/*if (parentStage != null && fgSnow != null)
+		// FIX: desbloqueado. Antes usaba "parentStage", que no existe en BaseCharacter
+		// (por eso daba error); se usa PlayState.instance.currentStage igual que en onCreate.
+		if (fgSnow != null && PlayState.instance != null && PlayState.instance.currentStage != null)
 		{
 			if (fgSnow.shader != this.shader)
 				fgSnow.shader = this.shader;
-		}*/
+		}
+	}
+
+	// RESET: quitar la nieve del stage cuando se destruye el personaje
+	override function onDestroy(event:ScriptEvent):Void
+	{
+		removeFgSnow();
+		super.onDestroy(event);
+	}
+
+	function removeFgSnow():Void
+	{
+		if (fgSnow == null)
+			return;
+
+		var stage = PlayState.instance != null ? PlayState.instance.currentStage : null;
+		if (stage != null)
+			stage.remove(fgSnow);
+
+		fgSnow.kill();
+		fgSnow.destroy();
+		fgSnow = null;
 	}
 }

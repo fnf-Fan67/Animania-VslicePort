@@ -8,8 +8,8 @@ class CurvedHealthBarModule extends Module implements IPlayStateScriptedClass
 	static inline var COLOR_GREEN:FlxColor = 0xFF66FF33;
 	static inline var COLOR_RED:FlxColor = 0xFFFF0000;
 
-	static inline var BAR_INSET_X:Float = 0;
-	static inline var BAR_INSET_Y:Float = 0;
+	static inline var BAR_INSET_X:Float = 20;
+	static inline var BAR_INSET_Y:Float = 8;
 
 	static inline var FC_ATLAS_ASSET:String = "ui/ratings/GAMEPLAY_UI_ASSETS";
 	static inline var FC_ATLAS_LIBRARY:String = "shared";
@@ -44,8 +44,8 @@ class CurvedHealthBarModule extends Module implements IPlayStateScriptedClass
 
 	var fillX:Float = 0;
 	var fillY:Float = 0;
-	var fillWidth:Float = 0;
-	var fillHeight:Float = 0;
+	var fillWidth:Float = 774;
+	var fillHeight:Float = 51;
 
 	var built:Bool = false;
 
@@ -111,7 +111,7 @@ class CurvedHealthBarModule extends Module implements IPlayStateScriptedClass
 
 		computeGeometry();
 
-		var newBar:FlxBar = new FlxBar(fillX - 20, fillY + (fillHeight / 2) - 15, FlxBarFillDirection.RIGHT_TO_LEFT, Std.int(fillWidth), Std.int(fillHeight), play, "healthLerp",
+		var newBar:FlxBar = new FlxBar(fillX, fillY + (fillHeight / 2) - 15, FlxBarFillDirection.RIGHT_TO_LEFT, Std.int(fillWidth), Std.int(fillHeight), play, "healthLerp",
 			Constants.HEALTH_MIN, Constants.HEALTH_MAX);
 		newBar.visible = false;
 		newBar.scrollFactor.set(0, 0);
@@ -155,7 +155,7 @@ class CurvedHealthBarModule extends Module implements IPlayStateScriptedClass
 
 		for (bar in [redBar, greenBar])
 		{
-			bar.setPosition(fillX + 25, fillY + 3);
+			bar.setPosition(fillX, fillY);
 			bar.clipRect = null;
 		}
 

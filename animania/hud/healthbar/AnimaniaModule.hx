@@ -20,11 +20,11 @@ class AnimaniaModule extends Module
 		return MEGA_ALLOWED_STAGES.indexOf(play.currentStage.id) != -1;
 	}
 
-	var ICON_Y_OFFSET:Float = -5;
+	var ICON_Y_OFFSET:Float = 0;
 
 	var ICON_IGNORE_OFFSET_Y:Bool = true;
 
-	var ICON_CENTER_DX:Float = 50;
+	var ICON_CENTER_DX:Float = 60;
 	var ICON_IGNORE_OFFSET_X:Bool = true;
 
 	var CURVE_CENTER:Array<Float> = [11.3, 11.3, 11.3, 12.3, 13.6, 14.7, 15.8, 16.9, 17.8, 18.7, 19.5, 20.5, 21.4, 21.6, 22.5, 22.6, 23.5, 23.5, 24.1, 24.5, 24.5, 25.0, 25.0, 25.0, 24.9, 24.5, 24.5, 24.1, 23.6, 23.5, 22.9, 22.5, 21.9, 21.5, 20.6, 19.8, 19.1, 18.4, 17.4, 16.4, 15.3, 14.1, 12.9, 11.7, 11.7, 11.7, 11.7];
